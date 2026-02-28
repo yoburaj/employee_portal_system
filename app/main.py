@@ -22,6 +22,14 @@ app.add_middleware(
 )
 
 app.include_router(api_v1_router)
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Ensure uploads directory exists
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 from fastapi.responses import JSONResponse
 

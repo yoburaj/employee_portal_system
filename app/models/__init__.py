@@ -6,3 +6,4 @@ from .employee_skill import EmployeeSkill
 from .facial_recognition import FacialRecognitionData
 from .admin_department_access import AdminDepartmentAccess
 from .auth_log import AuthenticationLog
+from .employee_document import EmployeeDocument

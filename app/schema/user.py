@@ -63,6 +63,18 @@ class UserSummaryResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# --- Document Schemas ---
+class EmployeeDocumentResponse(BaseModel):
+    id: int
+    document_name: str
+    document_type: Optional[str] = None
+    file_path: str
+    file_size_bytes: Optional[int] = None
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
 # --- Profile Schemas ---
 class EmployeeProfileBase(BaseModel):
     first_name: str
@@ -70,6 +82,7 @@ class EmployeeProfileBase(BaseModel):
     job_title: Optional[str] = None
     phone_number: Optional[str] = None
     date_of_birth: Optional[date] = None
+    profile_picture: Optional[str] = None
 
 class EmployeeProfileUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -78,6 +91,9 @@ class EmployeeProfileUpdate(BaseModel):
     job_title: Optional[str] = None
     phone_number: Optional[str] = None
     department_id: Optional[int] = None
+    hire_date: Optional[date] = None
+    date_of_birth: Optional[date] = None
+    profile_picture: Optional[str] = None
     skills: Optional[List[EmployeeSkillCreate]] = None
 
 class EmployeeProfileResponse(EmployeeProfileBase):
@@ -85,6 +101,7 @@ class EmployeeProfileResponse(EmployeeProfileBase):
     employee_id: Optional[str] = None
     department: Optional[DepartmentResponse] = None
     skills: List[EmployeeSkillResponse] = []
+    documents: List[EmployeeDocumentResponse] = []
     hire_date: Optional[date]
     user: Optional[UserSummaryResponse] = None
 

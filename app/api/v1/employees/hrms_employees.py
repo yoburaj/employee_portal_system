@@ -6,6 +6,7 @@ from app.database.database import get_db
 from app.models.user import User, UserRole
 from app.models.employee_profile import EmployeeProfile
 from app.models.employee_skill import EmployeeSkill
+from app.models.employee_document import EmployeeDocument
 from app.models.admin_department_access import AdminDepartmentAccess
 from app.schema.user import EmployeeProfileResponse, EmployeeProfileUpdate, UserCreate
 from app.api.v1.auth.dependencies import get_current_user, check_role
@@ -19,7 +20,7 @@ def get_my_profile(
     db: Session = Depends(get_db)
 ):
     profile = db.query(EmployeeProfile)\
-        .options(joinedload(EmployeeProfile.department), joinedload(EmployeeProfile.skills).joinedload(EmployeeSkill.skill))\
+        .options(joinedload(EmployeeProfile.department), joinedload(EmployeeProfile.skills).joinedload(EmployeeSkill.skill), joinedload(EmployeeProfile.documents))\
         .filter(EmployeeProfile.user_id == current_user.id)\
         .first()
     if not profile:
@@ -151,6 +152,15 @@ def update_profile(
         raise HTTPException(status_code=404, detail="Profile not found")
     
     update_data = profile_in.dict(exclude_unset=True)
+
+    if "email" in update_data:
+        new_email = update_data.pop("email")
+        if profile.user:
+            existing_user = db.query(User).filter(User.email == new_email).first()
+            if existing_user and existing_user.id != profile.user_id:
+                raise HTTPException(status_code=400, detail="Email already exists")
+            profile.user.email = new_email
+
     if "skills" in update_data:
         # Update skills logic (simpler: replace all for now or append)
         db.query(EmployeeSkill).filter(EmployeeSkill.employee_id == profile.id).delete()
@@ -242,3 +252,72 @@ def delete_employee(
     
     db.commit()
     return {"status": "success", "message": f"Employee {employee_id} deleted"}
+
+from fastapi import File, UploadFile
+import shutil
+import os
+import uuid
+
+@router.post("/upload-avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    profile = current_user.employee_profile
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    # Ensure directory exists
+    os.makedirs("uploads/profile_pictures", exist_ok=True)
+    
+    # Generate unique filename
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4()}{ext}"
+    file_path = f"uploads/profile_pictures/{filename}"
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Update profile
+    profile.profile_picture = f"/uploads/profile_pictures/{filename}"
+    db.commit()
+    db.refresh(profile)
+
+    return {"url": profile.profile_picture}
+
+@router.post("/upload-document")
+async def upload_document(
+    file: UploadFile = File(...),
+    document_type: str = "General",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    profile = current_user.employee_profile
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    os.makedirs("uploads/documents", exist_ok=True)
+    
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4()}{ext}"
+    file_path = f"uploads/documents/{filename}"
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    file_size = os.path.getsize(file_path)
+
+    new_doc = EmployeeDocument(
+        employee_id=profile.id,
+        document_name=file.filename,
+        document_type=document_type,
+        file_path=f"/{file_path}",
+        file_size_bytes=file_size
+    )
+    db.add(new_doc)
+    db.commit()
+    db.refresh(new_doc)
+
+    from app.schema.user import EmployeeDocumentResponse
+    return EmployeeDocumentResponse.from_orm(new_doc)

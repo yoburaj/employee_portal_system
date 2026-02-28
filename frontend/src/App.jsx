@@ -1,10 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import LoginForm from './components/auth/LoginForm';
-import SignupForm from './components/auth/SignupForm';
+import Login from './pages/Login/Login';
+import Signup from './pages/Signup/Signup';
 import Dashboard from './components/dashboard/Dashboard';
-import { LogOut, LayoutDashboard, Database, Info, User, Activity } from 'lucide-react';
+import { LogOut, LayoutDashboard, Database, Activity, User as UserIcon } from 'lucide-react';
 
 import LandingPage from './components/common/LandingPage';
 import PublicNavbar from './components/common/PublicNavbar';
@@ -12,7 +12,7 @@ import PublicNavbar from './components/common/PublicNavbar';
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/" />;
+  if (!user) return <Navigate to="/login" />;
   return children;
 };
 
@@ -61,7 +61,7 @@ const Navbar = () => {
             <LayoutDashboard size={18} /> Dashboard
           </a>
           <a href="/profile" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', textDecoration: 'none' }}>
-            <User size={18} /> My Profile
+            <UserIcon size={18} /> My Profile
           </a>
         </div>
 
@@ -82,22 +82,23 @@ const Navbar = () => {
 };
 
 const LoadingScreen = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--bg-dark)' }}>
-    <div className="glass" style={{ padding: '2rem', borderRadius: '1rem', color: 'white' }}>
-      <Activity className="animate-pulse" style={{ marginRight: '1rem' }} /> Loading HRMS Application...
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--bg-main)' }}>
+    <div className="glass" style={{ padding: '2rem', borderRadius: '1rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <Activity className="animate-spin" size={20} />
+      <span>Loading HRMS Application...</span>
     </div>
   </div>
 );
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <Layout>
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginForm />} />
-            <Route path="/signup" element={<SignupForm />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
@@ -105,22 +106,8 @@ function App() {
             } />
           </Routes>
         </Layout>
-      </Router>
-      <style>{`
-        .app-container {
-          min-height: 100vh;
-          background: var(--bg-dark);
-        }
-        .container {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 1rem;
-        }
-        .main-wrapper {
-            min-height: calc(100vh - 80px); /* Adjust based on navbar height */
-        }
-      `}</style>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

@@ -5,10 +5,10 @@ import {
     LayoutDashboard, User, Calendar, FileText, Settings,
     Bell, LogOut, Info, ShieldCheck, Mail, Phone,
     ChevronRight, Rocket, Edit, Clock, Smartphone,
-    HelpCircle, Menu, Activity, ChevronLeft, Camera, X, CheckCircle2,
-    AlertCircle, Briefcase, Globe, Hash
+    HelpCircle, Activity, ChevronLeft, Camera, X, Briefcase
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import './EmployeeDashboard.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
@@ -24,6 +24,11 @@ const EmployeeDashboard = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [loading, setLoading] = useState(true);
     const [attendanceLogs, setAttendanceLogs] = useState([]);
+
+    // Skills State
+    const [allSkills, setAllSkills] = useState([]);
+    const [editSkills, setEditSkills] = useState([]);
+    const [selectedSkillToAdd, setSelectedSkillToAdd] = useState('');
 
     // Modal States
     const [showEditModal, setShowEditModal] = useState(false);
@@ -48,12 +53,14 @@ const EmployeeDashboard = () => {
             try {
                 const token = localStorage.getItem('token');
                 const headers = { Authorization: `Bearer ${token}` };
-                const [profileResp, logsResp] = await Promise.all([
+                const [profileResp, logsResp, skillsResp] = await Promise.all([
                     axios.get(`${API_BASE}/employees/me`, { headers }),
-                    axios.get(`${API_BASE}/admin/auth-logs`, { headers })
+                    axios.get(`${API_BASE}/admin/auth-logs`, { headers }),
+                    axios.get(`${API_BASE}/admin/skills`, { headers })
                 ]);
                 setProfile(profileResp.data);
                 setAttendanceLogs(logsResp.data);
+                setAllSkills(skillsResp.data);
             } catch (err) {
                 console.error("Failed to load profile", err);
             } finally {
@@ -66,18 +73,74 @@ const EmployeeDashboard = () => {
     const handleSaveProfile = async (e) => {
         e.preventDefault();
         setSaving(true);
-        // Simulate API call
-        setTimeout(() => {
-            setProfile(prev => ({
-                ...prev,
-                first_name: editData.first_name,
-                last_name: editData.last_name,
-                phone_number: editData.phone_number,
-                job_title: editData.job_title
-            }));
-            setSaving(false);
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await axios.put(`${API_BASE}/employees/me`, editData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setProfile(resp.data);
             setShowEditModal(false);
-        }, 1500);
+        } catch (err) {
+            console.error("Failed to update profile", err);
+            alert("Failed to update profile. " + (err.response?.data?.detail || ""));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleAddSkill = () => {
+        if (!selectedSkillToAdd) return;
+        const skillObj = allSkills.find(s => s.id.toString() === selectedSkillToAdd);
+        if (skillObj && !editSkills.some(es => (es.skill?.id || es.skill_id) === skillObj.id)) {
+            setEditSkills([...editSkills, {
+                skill: skillObj,
+                skill_id: skillObj.id,
+                proficiency_level: "beginner"
+            }]);
+        }
+        setSelectedSkillToAdd('');
+    };
+
+    const handleSaveSkills = async () => {
+        setSaving(true);
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await axios.put(`${API_BASE}/employees/me`, {
+                skills: editSkills.map(s => ({
+                    skill_id: s.skill?.id || s.skill_id,
+                    proficiency_level: s.proficiency_level.toLowerCase()
+                }))
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setProfile(resp.data);
+            setShowSkillsModal(false);
+        } catch (err) {
+            console.error("Failed to update skills", err);
+            alert("Failed to update skills. " + (err.response?.data?.detail || ""));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await axios.post(`${API_BASE}/employees/upload-avatar`, formData, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            setProfile(prev => ({ ...prev, profile_picture: resp.data.url }));
+        } catch (err) {
+            console.error("Failed to upload avatar", err);
+            alert("Failed to upload image.");
+        }
     };
 
     if (loading) {
@@ -89,34 +152,84 @@ const EmployeeDashboard = () => {
         );
     }
 
-    const skillsLevel = profile?.skills?.length > 4 ? "Expert" : profile?.skills?.length > 2 ? "Advanced" : "Intermediate";
-    const skillPercentile = profile?.skills?.length > 4 ? "Top 5%" : profile?.skills?.length > 2 ? "Top 15%" : "Top 40%";
+    const successfulLogs = attendanceLogs.filter(log => log.login_status === 'success');
+
+    // 1. Working Days in current month
+    const currentMonthLogs = successfulLogs.filter(log => new Date(log.login_attempt_time).getMonth() === now.getMonth() && new Date(log.login_attempt_time).getFullYear() === now.getFullYear());
+    const currentMonthUniquePresentDates = new Set(currentMonthLogs.map(log => new Date(log.login_attempt_time).toDateString()));
+    const workingDaysCount = currentMonthUniquePresentDates.size;
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+    // 2. Avg Login Time
+    let avgLoginTimeDisplay = "N/A";
+    if (successfulLogs.length > 0) {
+        const totalMinutes = successfulLogs.reduce((acc, log) => {
+            const d = new Date(log.login_attempt_time);
+            return acc + (d.getHours() * 60 + d.getMinutes());
+        }, 0);
+        const avgMinutes = Math.floor(totalMinutes / successfulLogs.length);
+        const avgH = Math.floor(avgMinutes / 60);
+        const avgM = avgMinutes % 60;
+        const ampm = avgH >= 12 ? 'PM' : 'AM';
+        const formattedH = avgH % 12 || 12;
+        avgLoginTimeDisplay = `${formattedH.toString().padStart(2, '0')}:${avgM.toString().padStart(2, '0')} ${ampm}`;
+    }
+
+    // 3. Recognition Score
+    let avgRecScoreDisplay = "N/A";
+    if (successfulLogs.length > 0) {
+        const totalScore = successfulLogs.reduce((acc, log) => acc + (log.facial_confidence || 0), 0);
+        avgRecScoreDisplay = (totalScore / successfulLogs.length).toFixed(1) + "%";
+    }
+
+    const getWeekAttendance = () => {
+        const weekData = [0, 0, 0, 0, 0, 0, 0];
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - (today.getDay() || 7) + 1); // Monday
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        successfulLogs.forEach(log => {
+            const d = new Date(log.login_attempt_time);
+            if (d >= startOfWeek) {
+                const dayIndex = (d.getDay() || 7) - 1; // 0 for Mon, 6 for Sun
+                if (dayIndex >= 0 && dayIndex < 7) {
+                    weekData[dayIndex] = log.facial_confidence || 95;
+                }
+            }
+        });
+        return weekData;
+    };
+    const attendanceChartData = getWeekAttendance();
+
+    const skillsLevel = profile?.skills?.length > 4 ? "Expert" : profile?.skills?.length > 2 ? "Advanced" : profile?.skills?.length > 0 ? "Intermediate" : "Beginner";
+    const skillPercentile = profile?.skills?.length > 4 ? "Top 5%" : profile?.skills?.length > 2 ? "Top 15%" : profile?.skills?.length > 0 ? "Top 40%" : "New Learner";
 
     const renderDashboard = () => (
-        <div className="employee-dashboard-view animate-fade-in">
+        <div className="employee-dashboard-view animate-fade-in animate-slide-up">
             <div className="stats-row">
                 <div className="stat-card glass">
                     <div className="stat-icon-box blue"><Calendar size={20} /></div>
                     <div className="stat-content">
                         <p className="stat-label">Working Days</p>
-                        <p className="stat-value">{now.getDate() - 1} / {new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}</p>
-                        <span className="stat-trend positive">+1 since yesterday</span>
+                        <p className="stat-value">{workingDaysCount} / {daysInMonth}</p>
+                        <span className="stat-trend positive">Current Month</span>
                     </div>
                 </div>
                 <div className="stat-card glass">
                     <div className="stat-icon-box purple"><Clock size={20} /></div>
                     <div className="stat-content">
                         <p className="stat-label">Avg. Login Time</p>
-                        <p className="stat-value">09:04 AM</p>
-                        <span className="stat-trend">Highly Punctual</span>
+                        <p className="stat-value">{avgLoginTimeDisplay}</p>
+                        <span className="stat-trend">Based on records</span>
                     </div>
                 </div>
                 <div className="stat-card glass">
                     <div className="stat-icon-box green"><ShieldCheck size={20} /></div>
                     <div className="stat-content">
                         <p className="stat-label">Recognition Score</p>
-                        <p className="stat-value">99.8%</p>
-                        <span className="stat-trend positive">Perfect Week</span>
+                        <p className="stat-value">{avgRecScoreDisplay}</p>
+                        <span className="stat-trend positive">AI Verify Avg</span>
                     </div>
                 </div>
                 <div className="stat-card glass">
@@ -137,9 +250,9 @@ const EmployeeDashboard = () => {
                     </div>
                     <div className="attendance-chart-placeholder">
                         <div className="chart-bar-container">
-                            {[88, 92, 45, 95, 82, 0, 0].map((h, i) => (
+                            {attendanceChartData.map((h, i) => (
                                 <div key={i} className="chart-item">
-                                    <div className="bar" style={{ height: `${h}%`, opacity: i > (now.getDay() - 1) ? 0.3 : 1 }}></div>
+                                    <div className="bar" style={{ height: `${h}%`, opacity: (h === 0 && i < ((now.getDay() || 7) - 1)) ? 0.1 : (h === 0 ? 0.05 : 1) }}></div>
                                     <span className="day-label">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
                                 </div>
                             ))}
@@ -150,47 +263,50 @@ const EmployeeDashboard = () => {
 
                 <div className="card glass recent-announcements">
                     <div className="card-header-with-icon">
-                        <div className="header-icon-box purple"><Bell size={20} /></div>
-                        <h3>ANNOUNCEMENTS</h3>
+                        <div className="header-icon-box purple"><Clock size={20} /></div>
+                        <h3>RECENT ACTIVITY</h3>
                     </div>
                     <div className="announcement-list">
-                        <div className="announcement-item">
-                            <div className="ann-dot active"></div>
-                            <div className="ann-content">
-                                <p className="ann-title">Biometric System Update</p>
-                                <p className="ann-time">Just Now</p>
+                        {attendanceLogs.slice(0, 3).map((log, i) => (
+                            <div key={log.id || i} className="announcement-item">
+                                <div className={`ann-dot ${i === 0 ? 'active' : ''}`}></div>
+                                <div className="ann-content">
+                                    <p className="ann-title">{log.login_status === 'success' ? 'Biometric Authentication' : 'Failed Access Attempt'}</p>
+                                    <p className="ann-time">{new Date(log.login_attempt_time).toLocaleString()}</p>
+                                </div>
                             </div>
-                        </div>
-                        <div className="announcement-item">
-                            <div className="ann-dot"></div>
-                            <div className="ann-content">
-                                <p className="ann-title">Monthly Townhall - {currentMonthName}</p>
-                                <p className="ann-time">2 hours ago</p>
+                        ))}
+                        {attendanceLogs.length === 0 && (
+                            <div className="announcement-item" style={{ justifyContent: 'center', color: 'var(--text-muted)' }}>
+                                No recent activity
                             </div>
-                        </div>
-                        <div className="announcement-item">
-                            <div className="ann-dot"></div>
-                            <div className="ann-content">
-                                <p className="ann-title">New Security Protocol Active</p>
-                                <p className="ann-time">Yesterday</p>
-                            </div>
-                        </div>
+                        )}
                     </div>
-                    <button className="view-all-btn">View All Announcements</button>
+                    <button className="view-all-btn" onClick={() => setActiveTab('attendance')}>View Attendance Logs</button>
                 </div>
             </div>
         </div>
     );
 
     const renderProfile = () => (
-        <div className="employee-profile-view animate-fade-in">
+        <div className="employee-profile-view animate-fade-in animate-slide-up">
             <div className="profile-header-card glass">
                 <div className="profile-main-info">
                     <div className="profile-avatar-wrapper">
-                        <div className="profile-avatar">
-                            {profile?.first_name?.[0]}{profile?.last_name?.[0]}
-                            <div className="status-indicator-dot"></div>
-                        </div>
+                        <label className="avatar-upload-label">
+                            <input type="file" style={{ display: 'none' }} accept="image/*" onChange={handleAvatarUpload} />
+                            {profile?.profile_picture ? (
+                                <img src={`${API_BASE.replace('/api/v1', '')}${profile.profile_picture}`} alt="Profile" className="profile-avatar" style={{ objectFit: 'cover' }} />
+                            ) : (
+                                <div className="profile-avatar">
+                                    {profile?.first_name?.[0]}{profile?.last_name?.[0]}
+                                </div>
+                            )}
+                            <div className="avatar-upload-overlay">
+                                <Camera size={24} />
+                            </div>
+                        </label>
+                        <div className="status-indicator-dot"></div>
                     </div>
                     <div className="profile-text-info">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -232,9 +348,9 @@ const EmployeeDashboard = () => {
                     </div>
                     <div className="info-list">
                         <InfoItem label="EMPLOYEE ID" value={profile?.employee_id || "VHR-" + (1000 + (profile?.id || 1))} />
-                        <InfoItem label="DEPARTMENT" value={profile?.department?.name || 'Operations'} />
-                        <InfoItem label="JOINED DATE" value={profile?.hire_date ? new Date(profile.hire_date).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }) : 'Jan 15, 2024'} />
-                        <InfoItem label="REPORTING MANAGER" value={profile?.department?.manager_name || "Sarah Jenkins"} />
+                        <InfoItem label="DEPARTMENT" value={profile?.department?.name || 'Unassigned'} />
+                        <InfoItem label="JOINED DATE" value={new Date(profile?.hire_date || new Date()).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' })} />
+                        <InfoItem label="REPORTING MANAGER" value={profile?.department?.manager_name || "Unassigned"} />
                     </div>
                 </div>
 
@@ -249,9 +365,13 @@ const EmployeeDashboard = () => {
                             <div className="security-icon-box success"><ShieldCheck size={18} /></div>
                             <div className="security-details">
                                 <p className="label">Last Biometric Login</p>
-                                <p className="value">Today, {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                <p className="value">
+                                    {successfulLogs.length > 0
+                                        ? new Date(successfulLogs[0].login_attempt_time).toLocaleString()
+                                        : 'No records found'}
+                                </p>
                                 <div className="security-pills">
-                                    <span className="security-pill">99.2% Face Match</span>
+                                    <span className="security-pill">{successfulLogs[0]?.facial_confidence || 0}% Face Match</span>
                                     <span className="security-pill">Secured Entry</span>
                                 </div>
                             </div>
@@ -273,7 +393,10 @@ const EmployeeDashboard = () => {
                     <div className="card-header-with-icon">
                         <div className="header-icon-box purple"><Rocket size={20} /></div>
                         <h3>MY SKILLS</h3>
-                        <button className="update-btn" onClick={() => setShowSkillsModal(true)}>+ UPDATE</button>
+                        <button className="update-btn" onClick={() => {
+                            setEditSkills(profile?.skills ? [...profile.skills] : []);
+                            setShowSkillsModal(true);
+                        }}>+ UPDATE</button>
                     </div>
                     <div className="skills-content">
                         {profile?.skills?.length > 0 ? (
@@ -313,7 +436,7 @@ const EmployeeDashboard = () => {
     }).length;
 
     const renderAttendance = () => (
-        <div className="employee-attendance-view animate-fade-in">
+        <div className="employee-attendance-view animate-fade-in animate-slide-up">
             <div className="attendance-header-stats">
                 <div className="card glass mini-stat">
                     <span className="label">Total Present</span>
@@ -388,24 +511,35 @@ const EmployeeDashboard = () => {
     );
 
     const renderDocuments = () => (
-        <div className="employee-documents-view animate-fade-in">
-            <div className="documents-grid">
-                {[
-                    { name: `${profile?.first_name || 'My'} - Offer Letter.pdf`, size: '1.2 MB', date: 'Jan 01, 2024', icon: <FileText size={24} /> },
-                    { name: `${profile?.first_name || 'My'} - Identity Proof.jpg`, size: '2.4 MB', date: 'Jan 05, 2024', icon: <Camera size={24} /> },
-                    { name: `${profile?.first_name || 'My'} - Contract Agreement.pdf`, size: '3.1 MB', date: 'Jan 01, 2024', icon: <FileText size={24} /> },
-                    { name: `VisionHRMS - Company Policy.pdf`, size: '0.8 MB', date: 'Feb 01, 2026', icon: <ShieldCheck size={24} /> },
-                ].map((doc, i) => (
-                    <div key={i} className="card glass document-card">
-                        <div className="doc-icon">{doc.icon}</div>
-                        <div className="doc-info">
-                            <p className="doc-name">{doc.name}</p>
-                            <p className="doc-meta">{doc.size} • {doc.date}</p>
-                        </div>
-                        <button className="icon-btn download"><ChevronRight size={20} /></button>
-                    </div>
-                ))}
+        <div className="employee-documents-view animate-fade-in animate-slide-up">
+            <div className="card-header-with-icon" style={{ marginBottom: '1.5rem' }}>
+                <div className="header-icon-box"><FileText size={20} /></div>
+                <h3>MY DOCUMENTS</h3>
             </div>
+            {profile?.documents?.length > 0 ? (
+                <div className="documents-grid">
+                    {profile.documents.map((doc, i) => (
+                        <div key={doc.id || i} className="card glass document-card">
+                            <div className="doc-icon">
+                                {doc.document_name.endsWith('.pdf') ? <FileText size={24} /> : <Camera size={24} />}
+                            </div>
+                            <div className="doc-info">
+                                <p className="doc-name">{doc.document_name}</p>
+                                <p className="doc-meta">{(doc.file_size_bytes / (1024 * 1024)).toFixed(2)} MB • {new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                            </div>
+                            <a href={`${API_BASE.replace('/api/v1', '')}${doc.file_path}`} download target="_blank" rel="noreferrer" className="icon-btn download" style={{ color: 'inherit' }}>
+                                <ChevronRight size={20} />
+                            </a>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="empty-skills" style={{ marginTop: '2rem' }}>
+                    <div className="empty-icon-circle"><FileText size={32} /></div>
+                    <p className="empty-title">No documents available</p>
+                    <p className="empty-desc">Your official HR documents will appear here once uploaded by Admin.</p>
+                </div>
+            )}
         </div>
     );
 
@@ -458,16 +592,30 @@ const EmployeeDashboard = () => {
                 </div>
             </aside>
 
-            <main className="portal-main">
+            <main className="portal-main animate-fade-in">
                 <header className="portal-header">
                     <div className="breadcrumb">
-                        <span>Employee Self-Service</span>
+                        <span className="root">Employee Self-Service</span>
                         <ChevronRight size={14} />
                         <span className="current">{activeTab === 'profile' ? 'Profile Details' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</span>
                     </div>
                     <div className="header-actions">
+                        <div className="search-minimal">
+                            <Rocket size={16} className="text-muted" />
+                            <input type="text" placeholder="Global search..." />
+                        </div>
                         <button className="icon-btn"><Bell size={20} /></button>
-                        <button className="icon-btn"><Settings size={20} /></button>
+                        <button className="icon-btn" onClick={() => setActiveTab('settings')}><Settings size={20} /></button>
+                        <div className="divider-v"></div>
+                        <div className="user-nav-pill" onClick={() => setActiveTab('profile')}>
+                            <div className="user-avatar-sm">
+                                {user?.username?.[0].toUpperCase()}
+                            </div>
+                            <div className="user-details-sm">
+                                <span className="username">{user?.username}</span>
+                                <span className="status">Online</span>
+                            </div>
+                        </div>
                     </div>
                 </header>
 
@@ -613,24 +761,47 @@ const EmployeeDashboard = () => {
                             <div className="skills-search">
                                 <label>Add New Skill</label>
                                 <div className="search-group">
-                                    <input type="text" placeholder="Search skills (e.g. React, Python, UI Design)..." />
-                                    <button className="btn btn-primary">Add</button>
+                                    <select
+                                        className="settings-input"
+                                        style={{ flex: 1, height: '40px', border: '1px solid var(--border-color)', borderRadius: '0.375rem', padding: '0 0.75rem', fontSize: '0.875rem', background: 'white' }}
+                                        value={selectedSkillToAdd}
+                                        onChange={e => setSelectedSkillToAdd(e.target.value)}
+                                    >
+                                        <option value="">Select a skill to add...</option>
+                                        {allSkills.map(skill => (
+                                            <option key={skill.id} value={skill.id} disabled={editSkills.some(es => (es.skill?.id || es.skill_id) === skill.id)}>
+                                                {skill.name} {skill.category ? `(${skill.category})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button className="btn btn-primary" onClick={handleAddSkill} disabled={!selectedSkillToAdd}>Add</button>
                                 </div>
                             </div>
                             <div className="current-skills-list">
                                 <label>Your Current Skills</label>
-                                {profile?.skills?.length > 0 ? (
+                                {editSkills?.length > 0 ? (
                                     <div className="skills-modal-grid">
-                                        {profile.skills.map(s => (
-                                            <div key={s.skill.id} className="skill-edit-card">
-                                                <span>{s.skill.name}</span>
-                                                <select defaultValue={s.proficiency_level}>
-                                                    <option>Beginner</option>
-                                                    <option>Intermediate</option>
-                                                    <option>Advanced</option>
-                                                    <option>Expert</option>
+                                        {editSkills.map((s, index) => (
+                                            <div key={s.skill?.id || index} className="skill-edit-card">
+                                                <span>{s.skill?.name}</span>
+                                                <select
+                                                    value={s.proficiency_level.charAt(0).toUpperCase() + s.proficiency_level.slice(1)}
+                                                    onChange={e => {
+                                                        const newSkills = [...editSkills];
+                                                        newSkills[index].proficiency_level = e.target.value.toLowerCase();
+                                                        setEditSkills(newSkills);
+                                                    }}
+                                                >
+                                                    <option value="Beginner">Beginner</option>
+                                                    <option value="Intermediate">Intermediate</option>
+                                                    <option value="Advanced">Advanced</option>
+                                                    <option value="Expert">Expert</option>
                                                 </select>
-                                                <button className="remove-skill-btn"><X size={14} /></button>
+                                                <button className="remove-skill-btn" onClick={() => {
+                                                    const newSkills = [...editSkills];
+                                                    newSkills.splice(index, 1);
+                                                    setEditSkills(newSkills);
+                                                }}><X size={14} /></button>
                                             </div>
                                         ))}
                                     </div>
@@ -641,307 +812,13 @@ const EmployeeDashboard = () => {
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-secondary" onClick={() => setShowSkillsModal(false)}>Discard</button>
-                            <button className="btn btn-primary" onClick={() => { setSaving(true); setTimeout(() => { setSaving(false); setShowSkillsModal(false); }, 1000); }}>
-                                Update Portfolio
+                            <button className="btn btn-primary" onClick={handleSaveSkills} disabled={saving}>
+                                {saving ? 'Updating...' : 'Update Portfolio'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-
-                        <style>{`
-                .employee-portal {
-                    display: flex;
-                    min-height: 100vh;
-                    background: var(--bg-main);
-                    color: var(--text-main);
-                    font-family: 'Inter', sans-serif;
-                }
-
-                .glass {
-                    background: var(--bg-card);
-                    backdrop-filter: blur(12px);
-                    border: 1px solid var(--border-color);
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                }
-
-                /* Sidebar */
-                .portal-sidebar {
-                    width: 280px;
-                    display: flex;
-                    flex-direction: column;
-                    padding: 2rem 1.5rem;
-                    border-right: 1px solid var(--border-color);
-                    background: var(--bg-card);
-                }
-
-                .sidebar-logo {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.75rem;
-                    font-size: 1.25rem;
-                    font-weight: 700;
-                    margin-bottom: 3rem;
-                    color: var(--text-main);
-                }
-
-                .logo-box {
-                    background: var(--primary-color);
-                    padding: 0.5rem;
-                    border-radius: 0.75rem;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-                }
-
-                .portal-nav {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.5rem;
-                    flex: 1;
-                }
-
-                .nav-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    padding: 0.875rem 1.25rem;
-                    border-radius: 0.75rem;
-                    color: var(--text-muted);
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    font-weight: 500;
-                }
-
-                .nav-item:hover { background: #f1f5f9; color: var(--text-main); }
-                .nav-item.active { background: #eff6ff; color: var(--primary-color); font-weight: 600; }
-
-                .sidebar-footer { margin-top: auto; padding-top: 2rem; border-top: 1px solid var(--border-color); }
-                .help-center { display: flex; align-items: center; gap: 0.75rem; color: var(--text-muted); font-size: 0.875rem; cursor: pointer; transition: 0.2s; }
-                .help-center:hover { color: var(--text-main); }
-                .logout-btn { transition: 0.2s; }
-                .logout-btn:hover { transform: translateX(5px); }
-
-                /* Main */
-                .portal-main {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    padding: 2rem 3rem;
-                    background: #f8fafc;
-                }
-
-                .portal-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 2.5rem;
-                }
-
-                .breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--text-muted); }
-                .breadcrumb .current { color: var(--text-main); font-weight: 600; }
-
-                .header-actions { display: flex; align-items: center; gap: 1rem; }
-                .icon-btn { background: white; border: 1px solid var(--border-color); color: var(--text-muted); cursor: pointer; padding: 0.5rem; border-radius: 0.5rem; transition: all 0.2s; }
-                .icon-btn:hover { background: #f1f5f9; color: var(--primary-color); border-color: #cbd5e1; }
-
-                /* Dashboard View */
-                .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-                .stat-card { padding: 1.5rem; border-radius: 1.25rem; display: flex; align-items: center; gap: 1.25rem; background: white; border: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-                .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-                .stat-icon-box { width: 48px; height: 48px; border-radius: 1rem; display: flex; align-items: center; justify-content: center; }
-                .stat-icon-box.blue { color: #3b82f6; background: #eff6ff; }
-                .stat-icon-box.purple { color: #a855f7; background: #f3e8ff; }
-                .stat-icon-box.green { color: #10b981; background: #ecfdf5; }
-                .stat-icon-box.orange { color: #f59e0b; background: #fffbeb; }
-                .stat-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-                .stat-value { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem; color: var(--text-main); }
-                .stat-trend { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; }
-                .stat-trend.positive { color: #10b981; }
-
-                .dashboard-grid { display: grid; grid-template-columns: 2fr 1.2fr; gap: 1.5rem; }
-                .chart-bar-container { display: flex; align-items: flex-end; justify-content: space-between; height: 150px; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; }
-                .bar { width: 30px; background: linear-gradient(to top, var(--primary-color), #60a5fa); border-radius: 4px 4px 0 0; }
-                .day-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; }
-                .announcement-list { display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 1.5rem; }
-                .announcement-item { display: flex; gap: 1rem; align-items: flex-start; }
-                .ann-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary-color); margin-top: 0.6rem; }
-                .ann-dot.active { background: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
-                .ann-title { font-size: 0.875rem; font-weight: 600; color: var(--text-main); }
-                .ann-time { font-size: 0.75rem; color: var(--text-muted); }
-
-                /* Profile View */
-                .profile-header-card { padding: 2.5rem; border-radius: 1.5rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; background: white; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-                .profile-main-info { display: flex; align-items: center; gap: 2rem; }
-                .profile-avatar { width: 100px; height: 100px; background: #e0e7ff; border: 4px solid #c7d2fe; border-radius: 2rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: var(--primary-color); position: relative; }
-                .status-indicator-dot { position: absolute; bottom: 0; right: 0; width: 18px; height: 18px; background: #10b981; border: 3px solid white; border-radius: 50%; }
-                .active-badge { background: #eff6ff; color: var(--primary-color); font-size: 0.65rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 0.5rem; }
-                .profile-text-info h2 { color: var(--text-main); font-weight: 700; margin: 0; }
-                .job-title { color: var(--text-muted); font-weight: 500; margin-top: 0.25rem; }
-                .contact-pills { display: flex; gap: 1rem; margin-top: 1rem; }
-                .contact-pill { display: flex; align-items: center; gap: 0.5rem; background: #f1f5f9; padding: 0.5rem 1rem; border-radius: 0.75rem; font-size: 0.8125rem; color: var(--text-main); }
-
-                .content-grid { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 1.5rem; }
-                .card { padding: 1.5rem; border-radius: 1.25rem; display: flex; flex-direction: column; background: white; border: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-                .card-header-with-icon { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; }
-                .card-header-with-icon h3 { font-size: 0.8125rem; font-weight: 700; color: var(--text-muted); flex: 1; }
-                .header-icon-box { padding: 0.5rem; background: #eff6ff; border-radius: 0.6rem; color: var(--primary-color); }
-                .info-list { display: flex; flex-direction: column; gap: 1.25rem; }
-                .info-item .label { font-size: 0.65rem; font-weight: 700; color: var(--text-muted); display: block; }
-                .info-item .value { font-size: 0.9375rem; font-weight: 600; color: var(--text-main); }
-
-                /* Attendance View */
-                .attendance-header-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-                .mini-stat { padding: 1.25rem; }
-                .mini-stat .label { color: var(--text-muted); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.25rem; }
-                .mini-stat .value { color: var(--text-main); font-size: 1.25rem; font-weight: 700; }
-                .text-orange { color: #f59e0b; }
-                .text-green { color: #10b981; }
-                
-                .attendance-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem; }
-                .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; margin-top: 1rem; }
-                .calendar-date { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: 0.75rem; font-size: 0.875rem; cursor: pointer; color: var(--text-main); border: 1px solid transparent; }
-                .calendar-date:hover { border-color: var(--primary-color); }
-                .calendar-date.active { background: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); }
-                
-                .logs-list { display: flex; flex-direction: column; gap: 0.75rem; }
-                .log-item { display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: #f8fafc; border-radius: 0.75rem; border: 1px solid var(--border-color); }
-                .log-date { font-weight: 600; color: var(--text-main); font-size: 0.875rem; }
-                .log-times { display: flex; flex-direction: column; font-size: 0.75rem; color: var(--text-muted); }
-                .log-status { font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.5rem; border-radius: 0.4rem; }
-                .log-status.present { background: #ecfdf5; color: #10b981; }
-                .log-status.late { background: #fffbeb; color: #f59e0b; }
-                .log-status.absent { background: #fef2f2; color: #ef4444; }
-
-                /* Documents View */
-                .documents-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
-                .document-card { flex-direction: row; align-items: center; gap: 1.25rem; padding: 1.25rem; cursor: pointer; transition: 0.2s; }
-                .document-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-color: #cbd5e1; }
-                .doc-icon { color: var(--primary-color); background: #eff6ff; padding: 0.75rem; border-radius: 0.75rem; }
-                .doc-info { flex: 1; }
-                .doc-name { font-weight: 600; color: var(--text-main); margin-bottom: 0.25rem; font-size: 0.9rem; }
-                .doc-meta { font-size: 0.75rem; color: var(--text-muted); }
-
-                /* Common */
-                .btn-primary { background: var(--primary-color); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 1rem; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; transition: 0.2s; box-shadow: 0 2px 5px rgba(37, 99, 235, 0.2); }
-                .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 5px 10px rgba(37, 99, 235, 0.3); }
-                .btn-secondary { background: white; color: var(--text-muted); border: 1px solid var(--border-color); padding: 0.75rem 1.5rem; border-radius: 1rem; cursor: pointer; font-weight: 600; transition: 0.2s; }
-                .btn-secondary:hover { background: #f8fafc; color: var(--text-main); }
-                .view-all-btn { width: 100%; padding: 0.75rem; background: white; border: 1px solid var(--border-color); border-radius: 0.75rem; color: var(--text-muted); cursor: pointer; margin-top: 1rem; font-weight: 500; font-size: 0.875rem; }
-                .view-all-btn:hover { background: #f8fafc; color: var(--text-main); border-color: #cbd5e1; }
-
-                /* Modals Styling */
-                .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1.5rem; }
-                .modal-content { width: 100%; max-width: 600px; padding: 2rem; border-radius: 1.5rem; position: relative; background: white; border: 1px solid var(--border-color); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
-                .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
-                .header-title-group { display: flex; gap: 1rem; align-items: center; }
-                .header-title-group h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem; color: var(--text-main); }
-                .header-title-group p { font-size: 0.875rem; color: var(--text-muted); }
-                .close-btn { background: #f1f5f9; border: none; color: var(--text-muted); cursor: pointer; padding: 0.5rem; border-radius: 0.5rem; transition: 0.2s; }
-                .close-btn:hover { background: #fee2e2; color: #ef4444; }
-
-                .modal-form { display: flex; flex-direction: column; gap: 1.5rem; }
-                .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-                .form-group.full-width { grid-column: span 2; }
-                .form-group label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem; text-transform: uppercase; }
-                .form-group input, .form-group select { width: 100%; background: white; border: 1px solid var(--border-color); padding: 0.875rem 1rem; border-radius: 0.75rem; color: var(--text-main); font-size: 0.9375rem; outline: none; transition: 0.2s; }
-                .form-group input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
-
-                .modal-footer { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem; }
-
-                /* Action Buttons Styling */
-                .view-history-link {
-                    background: white;
-                    border: 1px solid var(--border-color);
-                    color: var(--text-muted);
-                    padding: 0.4rem 0.9rem;
-                    border-radius: 0.75rem;
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-                .view-history-link:hover {
-                    background: #f8fafc;
-                    color: var(--text-main);
-                    border-color: #cbd5e1;
-                }
-
-                .update-btn {
-                    background: #eff6ff;
-                    border: 1px solid #dbeafe;
-                    color: var(--primary-color);
-                    padding: 0.4rem 0.8rem;
-                    border-radius: 0.6rem;
-                    font-size: 0.65rem;
-                    font-weight: 800;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    letter-spacing: 0.05em;
-                    text-transform: uppercase;
-                }
-                .update-btn:hover {
-                    background: var(--primary-color);
-                    color: #fff;
-                    border-color: var(--primary-color);
-                    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-                    transform: translateY(-1px);
-                }
-
-                .get-started-link {
-                    background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
-                    color: #fff;
-                    border: none;
-                    padding: 0.6rem 1.25rem;
-                    border-radius: 1rem;
-                    font-size: 0.8125rem;
-                    font-weight: 600;
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    cursor: pointer;
-                    transition: all 0.3s;
-                    margin: 1.25rem auto 0;
-                    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2);
-                }
-                .get-started-link:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
-                }
-
-                /* History Modal */
-                .history-list { display: flex; flex-direction: column; gap: 1rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem; }
-                .history-item { display: flex; gap: 1.25rem; padding: 1.25rem; background: #f8fafc; border-radius: 1rem; border: 1px solid var(--border-color); }
-                .history-icon { width: 40px; height: 40px; border-radius: 0.75rem; background: #eff6ff; color: var(--primary-color); display: flex; align-items: center; justify-content: center; }
-                .history-info { flex: 1; }
-                .history-main { display: flex; justify-content: space-between; margin-bottom: 0.35rem; }
-                .event-name { font-weight: 600; font-size: 0.9375rem; color: var(--text-main); }
-                .event-status { font-size: 0.7rem; font-weight: 800; color: #10b981; background: #ecfdf5; padding: 0.2rem 0.5rem; border-radius: 0.4rem; letter-spacing: 0.05em; }
-                .history-sub { display: flex; align-items: center; gap: 0.75rem; font-size: 0.75rem; color: var(--text-muted); }
-                .divider { width: 4px; height: 4px; border-radius: 50%; background: #cbd5e1; }
-
-                /* Skills Modal Edit */
-                .skills-search { margin-bottom: 2rem; }
-                .skills-search label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; }
-                .search-group { display: flex; gap: 0.75rem; }
-                .search-group input { flex: 1; background: white; border: 1px solid var(--border-color); padding: 0.875rem 1rem; border-radius: 0.75rem; color: var(--text-main); }
-                .current-skills-list label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 1rem; }
-                .skills-modal-grid { display: flex; flex-direction: column; gap: 0.75rem; }
-                .skill-edit-card { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.25rem; background: #f8fafc; border-radius: 1rem; border: 1px solid var(--border-color); }
-                .skill-edit-card span { color: var(--text-main); font-weight: 600; }
-                .skill-edit-card select { background: none; border: none; font-size: 0.8125rem; color: var(--primary-color); font-weight: 600; cursor: pointer; width: auto; padding: 0; outline: none; }
-                .remove-skill-btn { background: none; border: none; color: #ef4444; cursor: pointer; padding: 0.25rem; opacity: 0.6; transition: 0.2s; }
-                .remove-skill-btn:hover { opacity: 1; transform: scale(1.1); }
-
-                .animate-fade-in { animation: fadeIn 0.4s ease-out; }
-                .animate-scale-up { animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                @keyframes scaleUp { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-                .loading-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-main); color: var(--text-main); }
-                .loader { border: 3px solid rgba(37, 99, 235, 0.1); border-top: 3px solid var(--primary-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 1rem; }
-                @keyframes spin { 100% { transform: rotate(360deg); } }
-            `}</style>
         </div>
     );
 };

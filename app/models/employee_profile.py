@@ -16,6 +16,7 @@ class EmployeeProfile(Base):
     hire_date = Column(Date, nullable=True)
     job_title = Column(String(100), nullable=True)
     employee_id = Column(String(50), unique=True, nullable=True)
+    profile_picture = Column(String(500), nullable=True)
     manager_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -25,6 +26,7 @@ class EmployeeProfile(Base):
     department = relationship("Department", back_populates="employees")
     manager = relationship("User", foreign_keys=[manager_id])
     skills = relationship("EmployeeSkill", back_populates="employee", cascade="all, delete-orphan")
+    documents = relationship("EmployeeDocument", back_populates="employee", cascade="all, delete-orphan")
 
     @property
     def full_name(self):

@@ -193,23 +193,22 @@ const LandingPage = () => {
         </div>
       </footer>
 
-            <style>{`
+      <style>{`
                 .landing-page {
                     background-color: var(--bg-main);
                     color: var(--text-main);
                     overflow-x: hidden;
-                    font-family: 'Inter', sans-serif;
+                    font-family: var(--font-body);
                 }
 
                 .container {
-                    max-width: 1200px;
+                    max-width: 1280px;
                     margin: 0 auto;
-                    padding: 0 1.5rem;
+                    padding: 0 2rem;
                 }
 
-                /* Hero Section */
                 .hero {
-                    padding: 8rem 1.5rem 6rem;
+                    padding: 9rem 2rem 6rem;
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 4rem;
@@ -221,15 +220,17 @@ const LandingPage = () => {
                     display: inline-flex;
                     align-items: center;
                     gap: 0.5rem;
-                    background: #eff6ff; /* Blue 50 */
-                    border: 1px solid #dbeafe; /* Blue 100 */
-                    padding: 0.4rem 0.8rem;
-                    border-radius: 9999px;
+                    background: var(--primary-light);
+                    border: 1px solid rgba(37, 99, 235, 0.15);
+                    padding: 0.4rem 1rem;
+                    border-radius: var(--radius-full);
                     font-size: 0.75rem;
-                    font-weight: 700;
+                    font-weight: 800;
+                    font-family: var(--font-heading);
                     color: var(--primary-color);
-                    margin-bottom: 2rem;
-                    letter-spacing: 0.05em;
+                    margin-bottom: 2.5rem;
+                    letter-spacing: 0.08em;
+                    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
                 }
 
                 .release-badge .dot {
@@ -245,8 +246,9 @@ const LandingPage = () => {
                     line-height: 1.1;
                     font-weight: 800;
                     margin-bottom: 2rem;
-                    letter-spacing: -0.02em;
-                    color: var(--text-main);
+                    letter-spacing: -0.04em;
+                    color: var(--text-heading);
+                    font-family: var(--font-heading);
                 }
 
                 .hero h1 .highlight {
@@ -268,22 +270,26 @@ const LandingPage = () => {
                 }
 
                 .btn-large {
-                    padding: 1rem 2rem;
-                    font-size: 1rem;
-                    border-radius: 0.75rem;
+                    padding: 1rem 2.5rem;
+                    font-size: 1.125rem;
+                    border-radius: var(--radius-full);
+                    font-weight: 700;
+                    font-family: var(--font-body);
                 }
                 
                 .btn-outline {
                     background: transparent;
                     border: 1px solid var(--border-color);
-                    color: var(--text-main);
+                    color: var(--text-heading);
                     font-weight: 600;
-                    transition: all 0.2s;
+                    font-family: var(--font-body);
+                    transition: var(--transition-base);
                 }
                 .btn-outline:hover {
                     border-color: var(--primary-color);
                     color: var(--primary-color);
-                    background: #eff6ff;
+                    background: var(--primary-light);
+                    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
                 }
 
                 .trusted-by {
@@ -435,7 +441,7 @@ const LandingPage = () => {
 
                 /* Features Section */
                 .features {
-                    padding: 10rem 1.5rem;
+                    padding: 10rem 2rem;
                     text-align: center;
                     background: #f8fafc;
                 }
@@ -444,8 +450,9 @@ const LandingPage = () => {
                     font-size: 3rem;
                     font-weight: 800;
                     margin-bottom: 1.5rem;
-                    color: var(--text-main);
-                    letter-spacing: -0.02em;
+                    color: var(--text-heading);
+                    font-family: var(--font-heading);
+                    letter-spacing: -0.03em;
                 }
 
                 .section-header p {
@@ -491,10 +498,12 @@ const LandingPage = () => {
                 }
 
                 .feature-card h3 {
-                    font-size: 1.25rem;
+                    font-size: 1.5rem;
                     margin-bottom: 1rem;
-                    font-weight: 700;
-                    color: var(--text-main);
+                    font-weight: 800;
+                    color: var(--text-heading);
+                    font-family: var(--font-heading);
+                    letter-spacing: -0.02em;
                 }
 
                 .feature-card p {
@@ -518,15 +527,18 @@ const LandingPage = () => {
                 }
 
                 .footer-brand-section .logo-text {
-                    color: var(--text-main);
+                    color: var(--text-heading);
+                    font-family: var(--font-heading);
                     font-weight: 800;
                     font-size: 1.5rem;
+                    letter-spacing: -0.02em;
                 }
 
                 .logo-icon {
-                    background: var(--primary-color);
-                    padding: 0.5rem;
-                    border-radius: 0.5rem;
+                    background: linear-gradient(135deg, var(--primary-color), #6366f1);
+                    padding: 0.6rem;
+                    border-radius: var(--radius-md);
+                    box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.3);
                 }
 
                 .logo-section {
