@@ -582,29 +582,35 @@
 /* Attendance View */
 .attendance-header-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
 
-.mini-stat {
-    padding: 1.25rem;
+.summary-stat-card {
+    background: #ffffff;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
-.mini-stat .label {
-    color: var(--text-muted);
+.summary-stat-card .label {
+    color: #64748b;
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    display: block;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
 }
 
-.mini-stat .value {
-    color: var(--text-main);
-    font-size: 1.25rem;
-    font-weight: 700;
+.summary-stat-card .value {
+    color: #0f172a;
+    font-size: 1.5rem;
+    font-weight: 800;
 }
 
 .text-orange {
@@ -624,8 +630,16 @@
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 0.5rem;
+    gap: 0.35rem;
     margin-top: 1rem;
+}
+
+.calendar-day-label {
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.5rem;
 }
 
 .calendar-date {
@@ -633,12 +647,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f8fafc;
-    border-radius: 0.75rem;
-    font-size: 0.875rem;
+    background: #ffffff;
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
     cursor: pointer;
-    color: var(--text-main);
-    border: 1px solid transparent;
+    color: #334155;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    font-weight: 500;
+}
+
+.calendar-date.empty {
+    background: transparent;
+    box-shadow: none;
+    pointer-events: none;
 }
 
 .calendar-date:hover {
@@ -657,47 +679,50 @@
     gap: 0.75rem;
 }
 
-.log-item {
+.custom-log-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem;
-    background: #f8fafc;
-    border-radius: 0.75rem;
-    border: 1px solid var(--border-color);
+    padding: 0.9rem 1.25rem;
+    background: #ffffff;
+    border-radius: 0.5rem;
+    border: 1px solid #f1f5f9;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
 }
 
-.log-date {
-    font-weight: 600;
-    color: var(--text-main);
-    font-size: 0.875rem;
+.custom-log-date {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 0.95rem;
+    min-width: 100px;
 }
 
-.log-times {
+.custom-log-times {
     display: flex;
     flex-direction: column;
-    font-size: 0.75rem;
-    color: var(--text-muted);
+    font-size: 0.8rem;
+    color: #64748b;
+    flex: 1;
 }
 
-.log-status {
-    font-size: 0.75rem;
+.custom-log-status {
+    font-size: 0.85rem;
     font-weight: 700;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.375rem;
 }
 
-.log-status.present {
+.custom-log-status.present {
     background: #ecfdf5;
     color: #10b981;
 }
 
-.log-status.late {
+.custom-log-status.late {
     background: #fffbeb;
     color: #f59e0b;
 }
 
-.log-status.absent {
+.custom-log-status.absent {
     background: #fef2f2;
     color: #ef4444;
 }

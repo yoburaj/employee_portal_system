@@ -136,8 +136,8 @@ class FacialService:
                 return False, 0.0
             
             # Lower confidence is better for LBPH
-            # Adjusted threshold - higher is more permissive
-            CONF_THRESHOLD = 85.0 
+            # Adjusted threshold - lowered to 55.0 to be strict and prevent false positives
+            CONF_THRESHOLD = 55.0 
             
             if predicted_id == expected_user_id and confidence < CONF_THRESHOLD:
                 print(f"DEBUG: Face MATCHED (Confidence: {confidence:.2f})")
@@ -215,9 +215,8 @@ class FacialService:
             
             # print(f"DEBUG: 1:1 Result - Label: {pred_label}, Dist: {pred_conf:.2f}")
             
-            # We can use a stricter threshold for 1:1 verification to be safe, 
-            # or the same threshold. Let's use 85.0 as well.
-            SPECIFIC_THRESHOLD = 85.0
+            # We use a stricter threshold for 1:1 verification to be safe.
+            SPECIFIC_THRESHOLD = 55.0
             
             if pred_label == user_id and pred_conf < SPECIFIC_THRESHOLD:
                 return True, pred_conf
