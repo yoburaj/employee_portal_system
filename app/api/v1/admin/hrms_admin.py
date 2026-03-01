@@ -8,7 +8,9 @@ from app.models.department import Department
 from app.models.skill import Skill
 from app.models.auth_log import AuthenticationLog
 from app.models.admin_department_access import AdminDepartmentAccess
-from app.schema.user import DepartmentCreate, DepartmentResponse, SkillCreate, SkillResponse, AuthLogResponse
+from app.models.employee_profile import EmployeeProfile
+from app.models.employee_skill import EmployeeSkill
+from app.schema.user import DepartmentCreate, DepartmentResponse, SkillCreate, SkillResponse, AuthLogResponse, EmployeeProfileResponse, EmployeeProfileUpdate
 from app.api.v1.auth.dependencies import get_current_user, check_role
 from sqlalchemy.orm import joinedload
 
@@ -113,3 +115,73 @@ def get_auth_logs(
         query = query.filter(AuthenticationLog.login_status == status)
     
     return query.order_by(AuthenticationLog.login_attempt_time.desc()).limit(100).all()
+
+# --- Employee administration for super admin (mirrors /employees endpoints but uses numeric PK) ---
+
+@router.get("/employees", response_model=List[EmployeeProfileResponse])
+def admin_list_employees(
+    current_user: User = Depends(check_role([UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    # return all employee profiles with related data
+    return db.query(EmployeeProfile).options(
+        joinedload(EmployeeProfile.user).joinedload(User.facial_data),
+        joinedload(EmployeeProfile.department),
+        joinedload(EmployeeProfile.skills).joinedload(EmployeeSkill.skill)
+    ).all()
+
+@router.put("/employees/{emp_id}", response_model=EmployeeProfileResponse)
+def admin_update_employee(
+    emp_id: int,
+    profile_in: EmployeeProfileUpdate,
+    current_user: User = Depends(check_role([UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    profile = db.query(EmployeeProfile).filter(EmployeeProfile.id == emp_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    update_data = profile_in.dict(exclude_unset=True)
+    if "email" in update_data:
+        new_email = update_data.pop("email")
+        if profile.user:
+            existing_user = db.query(User).filter(User.email == new_email).first()
+            if existing_user and existing_user.id != profile.user_id:
+                raise HTTPException(status_code=400, detail="Email already exists")
+            profile.user.email = new_email
+
+    if "skills" in update_data:
+        db.query(EmployeeSkill).filter(EmployeeSkill.employee_id == profile.id).delete()
+        for skill_in in profile_in.skills:
+            emp_skill = EmployeeSkill(
+                employee_id=profile.id,
+                skill_id=skill_in.skill_id,
+                proficiency_level=skill_in.proficiency_level,
+                years_of_experience=skill_in.years_of_experience
+            )
+            db.add(emp_skill)
+        del update_data["skills"]
+
+    for key, value in update_data.items():
+        setattr(profile, key, value)
+
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+@router.delete("/employees/{emp_id}")
+def admin_delete_employee(
+    emp_id: int,
+    current_user: User = Depends(check_role([UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    profile = db.query(EmployeeProfile).filter(EmployeeProfile.id == emp_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    user = profile.user
+    db.delete(profile)
+    if user:
+        db.delete(user)
+    db.commit()
+    return {"status": "success", "message": f"Employee {emp_id} deleted"}

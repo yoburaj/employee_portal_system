@@ -97,24 +97,28 @@ def facial_enroll(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Save images and train
-    count = facial_service.save_face_images(user_id, face_images)
-    if count < 50:
-         # In a real app, we might allow fewer, but the requirement said 50
-         pass
-    
-    success = facial_service.train_model()
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to train facial model")
+    try:
+        # Generate average embedding from uploaded files using DeepFace ArcFace
+        avg_embedding = facial_service.generate_enrollment_embedding(face_images)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    # Update facial data record
+    # Save to database
     facial_data = db.query(FacialRecognitionData).filter(FacialRecognitionData.user_id == user_id).first()
     if facial_data:
         facial_data.is_enrolled = True
-        facial_data.face_encoding_path = f"ai/dataset/{user_id}"
+        facial_data.face_embedding = json.dumps(avg_embedding)
+        db.commit()
+    else:
+        new_facial_data = FacialRecognitionData(
+            user_id=user_id,
+            is_enrolled=True,
+            face_embedding=json.dumps(avg_embedding)
+        )
+        db.add(new_facial_data)
         db.commit()
 
-    return {"status": "success", "message": f"Enrolled {count} images successfully"}
+    return {"status": "success", "message": "Enrolled face embedding successfully"}
 
 @router.post("/login")
 def login(login_data: LoginRequest, db: Session = Depends(get_db)):
@@ -184,8 +188,11 @@ def verify_face(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Verify face
-    is_match, confidence = facial_service.verify_face(face_image, user_id)
+    if not user.facial_data or not user.facial_data.face_embedding:
+        raise HTTPException(status_code=400, detail="User has no registered face data")
+
+    # Verify face using the stored embedding
+    is_match, confidence = facial_service.verify_face(face_image, user.facial_data.face_embedding)
     
     # Log the attempt
     log = AuthenticationLog(

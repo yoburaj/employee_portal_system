@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Numeric
 from sqlalchemy.orm import relationship
+from sqlalchemy.types import Text
 from sqlalchemy.sql import func
 from app.database.database import Base
 
@@ -8,7 +9,7 @@ class FacialRecognitionData(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
-    face_encoding_path = Column(String(500), nullable=True)  # Path to stored dataset/encodings
+    face_embedding = Column(Text, nullable=True)  # Store DeepFace ArcFace embeddings as JSON array string
     enrollment_date = Column(DateTime(timezone=True), server_default=func.now())
     last_verified = Column(DateTime(timezone=True), nullable=True)
     verification_count = Column(Integer, default=0)

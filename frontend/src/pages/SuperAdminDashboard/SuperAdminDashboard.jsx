@@ -179,6 +179,38 @@ const SuperAdminDashboard = () => {
         emp.employee_id.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Calculate Dynamic Stats
+    const getWorkforceDistribution = () => {
+        if (!employees.length || !departments.length) return { dist: [], topDept: null };
+        const deptCounts = {};
+        employees.forEach(emp => {
+            const deptId = emp.department_id;
+            if (deptId) {
+                deptCounts[deptId] = (deptCounts[deptId] || 0) + 1;
+            }
+        });
+
+        let dist = departments.map(d => ({
+            ...d,
+            count: deptCounts[d.id] || 0,
+            percentage: Math.round(((deptCounts[d.id] || 0) / employees.length) * 100)
+        })).filter(d => d.count > 0).sort((a, b) => b.count - a.count);
+
+        return { dist, topDept: dist[0] || departments[0] || { name: 'N/A', percentage: 0 } };
+    };
+
+    const getSecurityAlerts = () => {
+        const last24h = new Date();
+        last24h.setHours(last24h.getHours() - 24);
+        return authLogs.filter(log => {
+            const logTime = new Date(log.login_attempt_time);
+            return logTime > last24h && (log.login_status === 'failed' || log.facial_confidence < 50);
+        }).length;
+    };
+
+    const { dist: workforceDist, topDept } = getWorkforceDistribution();
+    const securityAlertsCount = getSecurityAlerts();
+
     return (
         <div className="vision-container">
             <aside className="vision-sidebar">
@@ -195,10 +227,10 @@ const SuperAdminDashboard = () => {
                 </nav>
 
                 <div className="vision-user-profile">
-                    <div className="avatar">AD</div>
+                    <div className="avatar">{user?.username?.[0]?.toUpperCase() || 'U'}</div>
                     <div className="user-info">
-                        <p className="user-name">Vision Admin</p>
-                        <p className="user-role">Super Administrator</p>
+                        <p className="user-name">{user?.username || 'Unknown'}</p>
+                        <p className="user-role">{user?.role?.replace('_', ' ') || ''}</p>
                     </div>
                     <LogOut size={18} style={{ marginLeft: 'auto', cursor: 'pointer', color: 'var(--text-muted)' }} onClick={logout} />
                 </div>
@@ -227,7 +259,7 @@ const SuperAdminDashboard = () => {
                         <div className="vision-stats">
                             <StatCard title="Total Workforce" value={employees.length} trend="+4.2%" icon={<Users size={20} color="var(--primary-color)" />} />
                             <StatCard title="Active Systems" value={departments.length} trend="Stable" icon={<Building2 size={20} color="var(--primary-color)" />} />
-                            <StatCard title="Security Alerts" value="0" trend="0% (24h)" icon={<Shield size={20} color="#10b981" />} />
+                            <StatCard title="Security Alerts" value={securityAlertsCount} trend={`${securityAlertsCount > 0 ? 'Action Required' : '0% (24h)'}`} icon={<Shield size={20} color={securityAlertsCount > 0 ? "#ef4444" : "#10b981"} />} />
                             <StatCard title="System Uptime" value="99.9%" trend="+0.1%" icon={<ArrowUpRight size={20} color="#10b981" />} />
                         </div>
 
@@ -262,22 +294,24 @@ const SuperAdminDashboard = () => {
                                     <h2>Workforce Distribution</h2>
                                 </div>
                                 <div style={{ padding: '2rem', textAlign: 'center' }}>
-                                    <div style={{ position: 'relative', width: '150px', height: '150px', margin: '0 auto', borderRadius: '50%', background: 'conic-gradient(var(--primary-color) 0% 65%, #c7d2fe 65% 100%)' }}>
+                                    <div style={{ position: 'relative', width: '150px', height: '150px', margin: '0 auto', borderRadius: '50%', background: `conic-gradient(var(--primary-color) 0% ${topDept?.percentage || 0}%, #c7d2fe ${topDept?.percentage || 0}% 100%)` }}>
                                         <div style={{ position: 'absolute', inset: '20px', background: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                                            <span style={{ fontSize: '1.5rem', fontWeight: '800' }}>65%</span>
-                                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>ENGINEERING</span>
+                                            <span style={{ fontSize: '1.5rem', fontWeight: '800' }}>{topDept?.percentage || 0}%</span>
+                                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{topDept?.name || 'NO DATA'}</span>
                                         </div>
                                     </div>
                                     <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                        {departments.map(d => (
+                                        {workforceDist.length > 0 ? workforceDist.map((d, idx) => (
                                             <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                                                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: d.id % 2 === 0 ? 'var(--primary-color)' : '#c7d2fe' }}></div>
+                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: idx === 0 ? 'var(--primary-color)' : '#c7d2fe' }}></div>
                                                     {d.name}
                                                 </span>
-                                                <span style={{ fontWeight: '600' }}>{Math.floor(Math.random() * 20) + 5}%</span>
+                                                <span style={{ fontWeight: '600' }}>{d.percentage}%</span>
                                             </div>
-                                        ))}
+                                        )) : (
+                                            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No departmental data available.</div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -298,54 +332,67 @@ const SuperAdminDashboard = () => {
                             </div>
                         </div>
                         <div className="vision-table-wrapper">
-                            <table className="vision-table">
-                                <thead>
-                                    <tr>
-                                        <th>Employee Identity</th>
-                                        <th>Departmental Unit</th>
-                                        <th>Sync Status</th>
-                                        <th>Primary Skills</th>
-                                        <th>Security Integrity</th>
-                                        <th style={{ textAlign: 'right' }}>Management</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredEmployees.map((emp) => (
-                                        <tr key={emp.id}>
-                                            <td>
-                                                <div className="emp-cell">
-                                                    <div className="emp-avatar">{emp.first_name[0]}{emp.last_name[0]}</div>
-                                                    <div>
-                                                        <p className="emp-name">{emp.first_name} {emp.last_name}</p>
-                                                        <p className="emp-id">{emp.employee_id}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>{emp.department?.name || 'Unassigned'}</td>
-                                            <td><span className="status-badge present">Synchronized</span></td>
-                                            <td>
-                                                <div className="skills-tags">
-                                                    {emp.skills.slice(0, 2).map(s => <span key={s.skill.id} className="skill-tag">{s.skill.name}</span>)}
-                                                    {emp.skills.length > 2 && <span className="skill-tag">+{emp.skills.length - 2}</span>}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    <div className="confidence-track"><div className="confidence-fill" style={{ width: '98%', background: '#10b981' }}></div></div>
-                                                    <span style={{ fontSize: '0.75rem', fontWeight: '600' }}>98%</span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div className="action-icons" style={{ justifyContent: 'flex-end' }}>
-                                                    <button onClick={() => { setSelectedEmployee(emp); setActionType('view'); }}><Eye size={16} /></button>
-                                                    <button onClick={() => { setSelectedEmployee(emp); setActionType('edit'); }}><Edit2 size={16} /></button>
-                                                    <button className="btn-delete-row" onClick={() => { setSelectedEmployee(emp); setActionType('delete'); }}><Trash2 size={16} /></button>
-                                                </div>
-                                            </td>
+                            {filteredEmployees.length > 0 ? (
+                                <table className="vision-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Employee Identity</th>
+                                            <th>Departmental Unit</th>
+                                            <th>Sync Status</th>
+                                            <th>Primary Skills</th>
+                                            <th>Security Integrity</th>
+                                            <th style={{ textAlign: 'right' }}>Management</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {filteredEmployees.map((emp) => (
+                                            <tr key={emp.id}>
+                                                <td>
+                                                    <div className="emp-cell">
+                                                        <div className="emp-avatar">{emp.first_name[0]}{emp.last_name[0]}</div>
+                                                        <div>
+                                                            <p className="emp-name">{emp.first_name} {emp.last_name}</p>
+                                                            <p className="emp-id">{emp.employee_id}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>{emp.department?.name || 'Unassigned'}</td>
+                                                <td><span className="status-badge present">Synchronized</span></td>
+                                                <td>
+                                                    <div className="skills-tags">
+                                                        {emp.skills?.slice(0, 2).map(s => <span key={s.skill.id} className="skill-tag">{s.skill.name}</span>)}
+                                                        {emp.skills?.length > 2 && <span className="skill-tag">+{emp.skills.length - 2}</span>}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <div className="confidence-track"><div className="confidence-fill" style={{ width: '98%', background: '#10b981' }}></div></div>
+                                                        <span style={{ fontSize: '0.75rem', fontWeight: '600' }}>98%</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className="action-icons" style={{ justifyContent: 'flex-end' }}>
+                                                        <button onClick={() => { setSelectedEmployee(emp); setActionType('view'); }}><Eye size={16} /></button>
+                                                        <button onClick={() => { setSelectedEmployee(emp); setActionType('edit'); }}><Edit2 size={16} /></button>
+                                                        <button className="btn-delete-row" onClick={() => { setSelectedEmployee(emp); setActionType('delete'); }}><Trash2 size={16} /></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="empty-state">
+                                    <div className="empty-icon glass-sub">
+                                        <Users size={32} color="var(--primary-color)" />
+                                    </div>
+                                    <h3>No Personnel Found</h3>
+                                    <p>The workforce registry is currently empty or no matches were found. Provision a new employee to populate the system.</p>
+                                    <button className="btn btn-primary" onClick={() => setShowAddModal(true)} style={{ marginTop: '1rem' }}>
+                                        <Plus size={18} /> Provision First Employee
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         <div className="card-footer">
                             <span>Showing {filteredEmployees.length} registered personnel</span>

@@ -100,7 +100,7 @@ const Signup = () => {
             <div className="signup-card glass animate-fade-in">
                 <header className="auth-header">
                     <div className="logo-box">
-                        <UserPlus className="logo-icon" size={step === 2 ? 22 : 28} />
+                        <UserPlus className="logo-icon" size={step === 2 ? 20 : 24} />
                     </div>
                     <h2 className="title">{step === 2 ? 'Biometric Sync' : step === 3 ? 'Success' : 'Create Account'}</h2>
                     {step === 1 && <p className="subtitle">Join the Enterprise HRMS</p>}

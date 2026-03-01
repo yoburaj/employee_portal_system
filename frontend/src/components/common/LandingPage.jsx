@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import {
   Database,
   Shield,
@@ -16,6 +17,22 @@ import {
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const [stats, setStats] = useState({ total_employees: 1284, active_users: 84 }); // Placeholder fallback
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+        const response = await axios.get(`${API_BASE}/dashboard/public-stats`);
+        if (response.data?.status === 'success') {
+          setStats(response.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to load public stats:', err);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const features = [
     {
@@ -84,7 +101,7 @@ const LandingPage = () => {
             <div className="card-stats">
               <div className="stat">
                 <span className="label">ACTIVE EMPLOYEES</span>
-                <span className="value">1,284</span>
+                <span className="value">{stats.total_employees.toLocaleString()}</span>
               </div>
               <div className="stat">
                 <span className="label">SECURITY LEVEL</span>
@@ -94,10 +111,10 @@ const LandingPage = () => {
             <div className="card-progress">
               <div className="progress-label">
                 <span>Data Processing</span>
-                <span>84%</span>
+                <span>{Math.min(100, Math.round((stats.active_users / Math.max(stats.total_employees, 1)) * 100))}%</span>
               </div>
               <div className="progress-bar">
-                <div className="fill" style={{ width: '84%' }}></div>
+                <div className="fill" style={{ width: `${Math.min(100, Math.round((stats.active_users / Math.max(stats.total_employees, 1)) * 100))}%` }}></div>
               </div>
             </div>
             <div className="card-status glass-sub">

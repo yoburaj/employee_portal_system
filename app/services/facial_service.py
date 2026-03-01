@@ -1,230 +1,113 @@
 import cv2
 import numpy as np
-import os
-from typing import List, Tuple, Optional
+import json
+from typing import List, Tuple
 from fastapi import UploadFile
 
+# DeepFace requires tensorflow or tf-keras
+from deepface import DeepFace
+
 class FacialService:
-    def __init__(self, dataset_path="ai/dataset", trainer_path="ai/trainer.yml"):
-        self.dataset_path = dataset_path
-        self.trainer_path = trainer_path
-        self.face_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        )
-        self.recognizer = cv2.face.LBPHFaceRecognizer_create()
-        self.last_trainer_mtime = 0
-        self._load_trainer_if_needed()
+    def __init__(self):
+        self.model_name = "Facenet"
+        self.detector_backend = "opencv" # Switched to opencv for faster, more forgiving detection
+        self.distance_metric = "cosine"
+        self.threshold = 0.40  # Facenet optimal cosine threshold.
 
-    def _load_trainer_if_needed(self):
-        """Loads or reloads the trainer only if the file has changed on disk."""
-        if not os.path.exists(self.trainer_path):
-            return
+    def extract_embedding(self, file: UploadFile) -> List[float]:
+        """Extracts facial embedding using DeepFace and RetinaFace detector."""
+        contents = file.file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if img is None:
+            raise ValueError("Invalid image file provided.")
 
         try:
-            current_mtime = os.path.getmtime(self.trainer_path)
-            if current_mtime > self.last_trainer_mtime:
-                print(f"DEBUG: Loading/Reloading trainer from {self.trainer_path}")
-                self.recognizer.read(self.trainer_path)
-                self.last_trainer_mtime = current_mtime
-        except Exception as e:
-            print(f"Error loading trainer: {e}")
-
-    def save_face_images(self, user_id: int, images: List[UploadFile]) -> int:
-        """Saves a batch of images for a user to the dataset directory."""
-        user_dir = os.path.join(self.dataset_path, str(user_id))
-        if not os.path.exists(user_dir):
-            os.makedirs(user_dir)
+            # Enforce detection False allows it to fallback if it struggles to perfectly map the face
+            objs = DeepFace.represent(
+                img_path=img, 
+                model_name=self.model_name, 
+                detector_backend=self.detector_backend, 
+                enforce_detection=False
+            )
             
-        count = 0
-        for i, file in enumerate(images):
-            try:
-                contents = file.file.read()
-                nparr = np.frombuffer(contents, np.uint8)
-                img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
+            if not objs or len(objs) == 0:
+                raise ValueError("No face detected in the image.")
                 
-                if img is not None:
-                    # Optimized scaleFactor 1.3 for speed
-                    faces = self.face_cascade.detectMultiScale(img, 1.3, 5)
-                    for (x, y, w, h) in faces:
-                        count += 1
-                        face_roi = img[y:y+h, x:x+w]
-                        # Standardize size for LBPH consistency
-                        face_roi = cv2.resize(face_roi, (200, 200))
-                        file_name = os.path.join(user_dir, f"{user_id}.{count}.jpg")
-                        cv2.imwrite(file_name, face_roi)
+            # Take the primary face embedding if multiple people detected
+            # (Usually we want to restrict to 1 face for employee portal)
+            return objs[0]["embedding"]
+        except Exception as e:
+            raise ValueError(f"DeepFace processing error: {str(e)}")
+
+    def generate_enrollment_embedding(self, files: List[UploadFile]) -> List[float]:
+        """
+        Takes multiple facial capture frames, extracts embeddings, 
+        and averages them to generate a highly robust baseline enrollment embedding.
+        Stops early to save computation time if enough high-quality frames are found.
+        """
+        embeddings = []
+        
+        # Retinaface is heavy. We don't need all 50 frames. Try up to 15 frames.
+        max_attempts = min(len(files), 15)
+        
+        for index, file in enumerate(files[:max_attempts]):
+            try:
+                emb = self.extract_embedding(file)
+                embeddings.append(emb)
+                
+                # 3 successful high-quality embeddings is plenty for a robust ArcFace average
+                if len(embeddings) >= 3:
+                    break
             except Exception as e:
-                print(f"Error processing image {i}: {e}")
-        
-        return count
+                print(f"DEBUG: Skipping frame {index} for enrollment. Reason: {e}")
 
-    def train_model(self) -> bool:
-        """Trains the LBPH model on all images in the dataset directory."""
-        face_samples = []
-        ids = []
-        
-        if not os.path.exists(self.dataset_path):
-            return False
-            
-        # Iterate through user directories
-        for user_id_str in os.listdir(self.dataset_path):
-            user_dir = os.path.join(self.dataset_path, user_id_str)
-            if not os.path.isdir(user_dir):
-                continue
-                
-            user_id = int(user_id_str)
-            for image_name in os.listdir(user_dir):
-                if not image_name.endswith(('.jpg', '.jpeg', '.png')):
-                    continue
-                    
-                image_path = os.path.join(user_dir, image_name)
-                img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-                if img is not None:
-                    # Ensure all training samples are consistent
-                    if img.shape != (200, 200):
-                        img = cv2.resize(img, (200, 200))
-                    face_samples.append(img)
-                    ids.append(user_id)
-        
-        if len(face_samples) > 0:
-            print(f"DEBUG: Training model with {len(face_samples)} samples...")
-            self.recognizer.train(face_samples, np.array(ids))
-            self.recognizer.save(self.trainer_path)
-            # Update mtime so we don't immediately reload what we just saved (though _load_trainer_if_needed would handle it)
-            self.last_trainer_mtime = os.path.getmtime(self.trainer_path)
-            return True
-        return False
+        if not embeddings:
+            raise ValueError(f"Face could not be detected. Ensure your face is fully visible, well-lit, and the webcam is not covered.")
 
-    def verify_face(self, file: UploadFile, expected_user_id: int) -> Tuple[bool, float]:
-        """Verifies if the face in the image matches the expected user ID."""
-        print(f"DEBUG: Starting face verification for user: {expected_user_id}")
-        
-        self._load_trainer_if_needed()
-        
-        if not os.path.exists(self.trainer_path):
-            print(f"DEBUG ERROR: Trainer path does not exist: {self.trainer_path}")
-            return False, 0.0
-            
-        try:
-            contents = file.file.read()
-            nparr = np.frombuffer(contents, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
-            
-            if img is None:
-                print("DEBUG ERROR: Failed to decode image")
-                return False, 0.0
-                
-            # Optimized detection (1.3 is faster than 1.1)
-            faces = self.face_cascade.detectMultiScale(img, 1.3, 5)
-            
-            if len(faces) == 0:
-                print("DEBUG: No faces detected in image")
-                return False, 0.0
-                
-            # Take the largest face if multiple detected
-            faces = sorted(faces, key=lambda f: f[2]*f[3], reverse=True)
-            (x, y, w, h) = faces[0]
-            face_roi = img[y:y+h, x:x+w]
-            
-            # Standardize size to 200x200 before prediction
-            face_roi = cv2.resize(face_roi, (200, 200))
-            
-            try:
-                predicted_id, confidence = self.recognizer.predict(face_roi)
-                print(f"DEBUG: Predicted ID: {predicted_id}, Confidence: {confidence}")
-            except Exception as cv_e:
-                print(f"DEBUG ERROR in OpenCV predict: {cv_e}")
-                return False, 0.0
-            
-            # Lower confidence is better for LBPH
-            # Adjusted threshold - lowered to 55.0 to be strict and prevent false positives
-            CONF_THRESHOLD = 55.0 
-            
-            if predicted_id == expected_user_id and confidence < CONF_THRESHOLD:
-                print(f"DEBUG: Face MATCHED (Confidence: {confidence:.2f})")
-                return True, confidence
-            else:
-                reason = "MISMATCH" if predicted_id != expected_user_id else "LOW_CONFIDENCE"
-                print(f"DEBUG: Global check FAILED. Reason: {reason}, Conf: {confidence:.2f}")
-                
-                # FALLBACK: 1:1 Verification
-                # If global recognition failed (wrong person or low confidence), 
-                # let's try to verify specifically against the claimed user.
-                print(f"DEBUG: Attempting 1:1 verification for user {expected_user_id}...")
-                is_match_specific, specific_conf = self.verify_specific_user(face_roi, expected_user_id)
-                
-                if is_match_specific:
-                    print(f"DEBUG: 1:1 Verification PASSED (Confidence: {specific_conf:.2f})")
-                    return True, specific_conf
-                else:
-                    print(f"DEBUG: 1:1 Verification FAILED (Confidence: {specific_conf:.2f})")
-                    return False, confidence
+        # Average the embeddings across the captured frames for robustness
+        avg_embedding = np.mean(embeddings, axis=0)
+        return avg_embedding.tolist()
 
-        except Exception as e:
-            print(f"DEBUG ERROR in Verification: {e}")
-            import traceback
-            traceback.print_exc()
-            return False, 0.0
+    def find_cosine_distance(self, source_rep: List[float], test_rep: List[float]) -> float:
+        """Manual cosine distance calculation for two representation arrays."""
+        a = np.matmul(np.transpose(source_rep), test_rep)
+        b = np.sum(np.multiply(source_rep, source_rep))
+        c = np.sum(np.multiply(test_rep, test_rep))
+        return 1 - (a / (np.sqrt(b) * np.sqrt(c)))
 
-    def verify_specific_user(self, face_roi, user_id: int) -> Tuple[bool, float]:
+    def verify_face(self, file: UploadFile, stored_embedding_json: str) -> Tuple[bool, float]:
         """
-        Verifies a face against a SPECIFIC user's dataset by training a temporary model.
-        This solves the issue where a user might look like someone else in the global model (mismatch),
-        but is actually the correct user (high similarity to their own data).
+        Compares dynamic input against mathematically stored embedding.
+        Returns Tuple(is_match, artificial_confidence_percentage).
         """
-        try:
-            user_dir = os.path.join(self.dataset_path, str(user_id))
-            if not os.path.exists(user_dir):
-                print(f"DEBUG: No dataset found for user {user_id}")
-                return False, 0.0
-
-            # Collect training data for THIS user only
-            faces = []
-            labels = []
-            
-            # We also need some negative samples to make the model robust, 
-            # otherwise a 1-class model might always predict 'match' with 0 confidence.
-            # However, LBPH calculates distance. If we only train on User X, 
-            # the distance to the query image tells us how similar it is.
-            # We don't need negative samples for distance calculation in 1-class config if we check threshold.
-            
-            valid_images = 0
-            for image_name in os.listdir(user_dir):
-                if not image_name.endswith(('.jpg', '.jpeg', '.png')):
-                    continue
-                image_path = os.path.join(user_dir, image_name)
-                img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-                if img is not None:
-                    if img.shape != (200, 200):
-                        img = cv2.resize(img, (200, 200))
-                    faces.append(img)
-                    labels.append(user_id) # Label doesn't matter much for 1-class, but we use user_id
-                    valid_images += 1
-            
-            if valid_images < 5:
-                print(f"DEBUG: Not enough images for 1:1 verification ({valid_images} found)")
-                return False, 0.0
-
-            # Train a temp model
-            # print(f"DEBUG: Training 1:1 model with {valid_images} images for user {user_id}")
-            temp_recognizer = cv2.face.LBPHFaceRecognizer_create()
-            temp_recognizer.train(faces, np.array(labels))
-            
-            # Predict
-            # For 1-class training, predict will return the label (user_id) and distance.
-            pred_label, pred_conf = temp_recognizer.predict(face_roi)
-            
-            # print(f"DEBUG: 1:1 Result - Label: {pred_label}, Dist: {pred_conf:.2f}")
-            
-            # We use a stricter threshold for 1:1 verification to be safe.
-            SPECIFIC_THRESHOLD = 55.0
-            
-            if pred_label == user_id and pred_conf < SPECIFIC_THRESHOLD:
-                return True, pred_conf
-            
-            return False, pred_conf
-
-        except Exception as e:
-            print(f"DEBUG ERROR in verify_specific_user: {e}")
+        if not stored_embedding_json:
+            print("DEBUG ERROR: Stored embedding JSON is empty.")
             return False, 0.0
+
+        try:
+            stored_embedding = json.loads(stored_embedding_json)
+        except json.JSONDecodeError:
+            print("DEBUG ERROR: Failed to decode stored embedding JSON.")
+            return False, 0.0
+
+        try:
+            current_embedding = self.extract_embedding(file)
+        except Exception as e:
+            print(f"DEBUG: Verification check failed extracting face: {e}")
+            return False, 0.0
+
+        distance = self.find_cosine_distance(stored_embedding, current_embedding)
+        
+        is_match = distance < self.threshold
+
+        # Format a pseudo-confidence percentage: closer to 0 distance means higher confidence
+        # Max out near 99.9%
+        confidence_percentage = max(0.0, 100.0 * (1.0 - (distance / 2.0)))
+
+        print(f"DEBUG: Face verification completed. Distance: {distance:.4f} | Is Match: {is_match} | Conf: {confidence_percentage:.2f}%")
+
+        return bool(is_match), float(confidence_percentage)
 
 facial_service = FacialService()

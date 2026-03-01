@@ -12,8 +12,8 @@
 .signup-page .signup-card {
     width: 100%;
     max-width: 460px;
-    padding: 1.5rem;
-    border-radius: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    border-radius: 1.25rem;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
@@ -23,19 +23,19 @@
 
 .signup-page .auth-header {
     text-align: center;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
 }
 
 .signup-page .logo-box {
-    width: 48px;
-    height: 48px;
+    width: 42px;
+    height: 42px;
     background: linear-gradient(135deg, var(--primary-color), #60a5fa);
-    border-radius: 1rem;
+    border-radius: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 0.75rem;
-    box-shadow: 0 6px 15px rgba(37, 99, 235, 0.4);
+    margin: 0 auto 0.5rem;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .signup-page .logo-icon {
@@ -43,7 +43,7 @@
 }
 
 .signup-page .title {
-    font-size: 1.35rem;
+    font-size: 1.2rem;
     font-weight: 800;
     letter-spacing: -0.02em;
     margin-bottom: 0.15rem;
@@ -52,19 +52,19 @@
 
 .signup-page .subtitle {
     color: var(--text-muted);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
 }
 
 .signup-page .auth-form-signup {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .signup-page .form-grid-signup {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .signup-page .input-group-signup label {
@@ -73,21 +73,21 @@
     font-weight: 700;
     color: var(--text-main);
     text-transform: uppercase;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
     letter-spacing: 0.05em;
 }
 
 .signup-page .input-group-signup input,
 .signup-page .input-group-signup select {
-    height: 2.25rem;
-    padding: 0 0.75rem;
+    height: 2rem;
+    padding: 0 0.6rem;
     background: #ffffff;
     border: 1px solid var(--border-color);
-    border-radius: 0.625rem;
+    border-radius: 0.5rem;
     color: var(--text-main);
     width: 100%;
     outline: none;
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     transition: all 0.2s;
 }
 
@@ -108,10 +108,12 @@
 
 .signup-page .w-full {
     width: 100%;
+    height: 2.25rem;
+    margin-top: 0.25rem;
 }
 
 .signup-page .mt-6 {
-    margin-top: 0.5rem;
+    margin-top: 0.25rem;
 }
 
 .signup-page .form-footer {
