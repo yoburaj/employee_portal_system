@@ -5,7 +5,7 @@ import {
     LayoutDashboard, User, Calendar, FileText, Settings,
     Bell, LogOut, Info, ShieldCheck, Mail, Phone,
     ChevronRight, Rocket, Edit, Clock, Smartphone,
-    HelpCircle, Activity, ChevronLeft, Camera, X, Briefcase
+    HelpCircle, Activity, ChevronLeft, Camera, X, Briefcase, Menu
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './EmployeeDashboard.css';
@@ -23,6 +23,7 @@ const EmployeeDashboard = () => {
     const [profile, setProfile] = useState(null);
     const [activeTab, setActiveTab] = useState('dashboard');
     const [loading, setLoading] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [attendanceLogs, setAttendanceLogs] = useState([]);
 
     // Skills State
@@ -135,6 +136,41 @@ const EmployeeDashboard = () => {
         }
     };
 
+    const handleDownloadReport = () => {
+        if (!attendanceLogs || attendanceLogs.length === 0) {
+            alert("No attendance logs available to download.");
+            return;
+        }
+
+        const headers = ["Date", "Time", "Confidence", "Status"];
+        const rows = attendanceLogs.map(log => {
+            const d = new Date(log.login_attempt_time);
+            return [
+                `"${d.toLocaleDateString()}"`,
+                `"${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}"`,
+                `"${log.facial_confidence}%"`,
+                `"${log.login_status === 'success' ? 'Verified' : 'Failed'}"`
+            ];
+        });
+
+        const csvContent = [
+            headers.map(h => `"${h}"`).join(","),
+            ...rows.map(row => row.join(","))
+        ].join("\n");
+
+        // Add UTF-8 BOM for Excel compatibility
+        const BOM = "\uFEFF";
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `attendance_report_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const handleAvatarUpload = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -220,36 +256,44 @@ const EmployeeDashboard = () => {
     const renderDashboard = () => (
         <div className="employee-dashboard-view animate-fade-in animate-slide-up">
             <div className="stats-row">
-                <div className="stat-card glass">
-                    <div className="stat-icon-box blue"><Calendar size={20} /></div>
+                <div className="stat-card blue glass">
+                    <div className="card-top-row">
+                        <div className="stat-icon-box blue"><Calendar size={24} /></div>
+                        <span className="stat-trend positive">Current Month</span>
+                    </div>
                     <div className="stat-content">
                         <p className="stat-label">Working Days</p>
                         <p className="stat-value">{workingDaysCount} / {daysInMonth}</p>
-                        <span className="stat-trend positive">Current Month</span>
                     </div>
                 </div>
-                <div className="stat-card glass">
-                    <div className="stat-icon-box purple"><Clock size={20} /></div>
+                <div className="stat-card purple glass">
+                    <div className="card-top-row">
+                        <div className="stat-icon-box purple"><Clock size={24} /></div>
+                        <span className="stat-trend">Based on records</span>
+                    </div>
                     <div className="stat-content">
                         <p className="stat-label">Avg. Login Time</p>
                         <p className="stat-value">{avgLoginTimeDisplay}</p>
-                        <span className="stat-trend">Based on records</span>
                     </div>
                 </div>
-                <div className="stat-card glass">
-                    <div className="stat-icon-box green"><ShieldCheck size={20} /></div>
+                <div className="stat-card green glass">
+                    <div className="card-top-row">
+                        <div className="stat-icon-box green"><ShieldCheck size={24} /></div>
+                        <span className="stat-trend positive">AI Verify Avg</span>
+                    </div>
                     <div className="stat-content">
                         <p className="stat-label">Recognition Score</p>
                         <p className="stat-value">{avgRecScoreDisplay}</p>
-                        <span className="stat-trend positive">AI Verify Avg</span>
                     </div>
                 </div>
-                <div className="stat-card glass">
-                    <div className="stat-icon-box orange"><Rocket size={20} /></div>
+                <div className="stat-card orange glass">
+                    <div className="card-top-row">
+                        <div className="stat-icon-box orange"><Rocket size={24} /></div>
+                        <span className="stat-trend positive">{skillPercentile}</span>
+                    </div>
                     <div className="stat-content">
                         <p className="stat-label">Skills Level</p>
                         <p className="stat-value">{skillsLevel}</p>
-                        <span className="stat-trend positive">{skillPercentile}</span>
                     </div>
                 </div>
             </div>
@@ -329,7 +373,7 @@ const EmployeeDashboard = () => {
                         <div className="contact-pills">
                             <div className="contact-pill">
                                 <Mail size={14} />
-                                <span>{user?.email}</span>
+                                <span>{profile?.user?.email || user?.email}</span>
                             </div>
                             <div className="contact-pill">
                                 <Phone size={14} />
@@ -342,7 +386,7 @@ const EmployeeDashboard = () => {
                     setEditData({
                         first_name: profile?.first_name || '',
                         last_name: profile?.last_name || '',
-                        email: user?.email || '',
+                        email: profile?.user?.email || user?.email || '',
                         phone_number: profile?.phone_number || '',
                         job_title: profile?.job_title || ''
                     });
@@ -527,7 +571,7 @@ const EmployeeDashboard = () => {
                             </div>
                         ))}
                     </div>
-                    <button className="view-all-btn">Download Report</button>
+                    <button className="view-all-btn" onClick={handleDownloadReport}>Download Report</button>
                 </div>
             </div>
         </div>
@@ -567,8 +611,11 @@ const EmployeeDashboard = () => {
     );
 
     return (
-        <div className="employee-portal">
-            <aside className="portal-sidebar glass">
+        <div className={`employee-portal ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+            {/* Mobile Overlay */}
+            {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
+
+            <aside className={`portal-sidebar glass ${isSidebarOpen ? 'open' : ''}`}>
                 <div className="sidebar-logo">
                     <div className="logo-box">
                         <Rocket size={20} color="white" />
@@ -581,25 +628,25 @@ const EmployeeDashboard = () => {
                         icon={<LayoutDashboard size={20} />}
                         label="Dashboard"
                         active={activeTab === 'dashboard'}
-                        onClick={() => setActiveTab('dashboard')}
+                        onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
                     />
                     <PortalNavItem
                         icon={<User size={20} />}
                         label="My Profile"
                         active={activeTab === 'profile'}
-                        onClick={() => setActiveTab('profile')}
+                        onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
                     />
                     <PortalNavItem
                         icon={<Calendar size={20} />}
                         label="Attendance"
                         active={activeTab === 'attendance'}
-                        onClick={() => setActiveTab('attendance')}
+                        onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
                     />
                     <PortalNavItem
                         icon={<FileText size={20} />}
                         label="Documents"
                         active={activeTab === 'documents'}
-                        onClick={() => setActiveTab('documents')}
+                        onClick={() => { setActiveTab('documents'); setIsSidebarOpen(false); }}
                     />
                 </nav>
 
@@ -617,10 +664,15 @@ const EmployeeDashboard = () => {
 
             <main className="portal-main animate-fade-in">
                 <header className="portal-header">
-                    <div className="breadcrumb">
-                        <span className="root">Employee Self-Service</span>
-                        <ChevronRight size={14} />
-                        <span className="current">{activeTab === 'profile' ? 'Profile Details' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</span>
+                    <div className="header-left">
+                        <button className="mobile-toggle" onClick={() => setIsSidebarOpen(true)}>
+                            <Menu size={24} />
+                        </button>
+                        <div className="breadcrumb">
+                            <span className="root">Employee Self-Service</span>
+                            <ChevronRight size={14} />
+                            <span className="current">{activeTab === 'profile' ? 'Profile Details' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</span>
+                        </div>
                     </div>
                     <div className="header-actions">
                         <div className="search-minimal">

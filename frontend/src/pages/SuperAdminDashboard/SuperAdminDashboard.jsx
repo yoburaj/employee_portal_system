@@ -644,7 +644,7 @@ const SuperAdminDashboard = () => {
                                     <span className="progress-text">{capturedCount} / 50 Reference Points</span>
                                 </div>
 
-                                <WebcamCapture onCapture={handleFaceCapture} isEnrolling={true} />
+                                <WebcamCapture onCapture={handleFaceCapture} isEnrolling={true} loading={isProcessing} />
 
                                 <div className="modal-footer" style={{ marginTop: '2rem' }}>
                                     <button className="btn btn-outline" onClick={() => setStep(3)} disabled={isProcessing}>Skip Enrollment</button>

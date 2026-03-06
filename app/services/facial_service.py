@@ -10,9 +10,9 @@ from deepface import DeepFace
 class FacialService:
     def __init__(self):
         self.model_name = "Facenet"
-        self.detector_backend = "opencv" # Switched to opencv for faster, more forgiving detection
+        self.detector_backend = "ssd" # Switched to SSD (OpenCV Deep AI) to avoid 3.12 Mediapipe/Keras compatibility bugs while keeping high accuracy
         self.distance_metric = "cosine"
-        self.threshold = 0.40  # Facenet optimal cosine threshold.
+        self.threshold = 0.40  # Restored to optimal Facenet threshold (0.40)
 
     def extract_embedding(self, file: UploadFile) -> List[float]:
         """Extracts facial embedding using DeepFace and RetinaFace detector."""
@@ -24,12 +24,12 @@ class FacialService:
             raise ValueError("Invalid image file provided.")
 
         try:
-            # Enforce detection False allows it to fallback if it struggles to perfectly map the face
+            # Stricter enforcement: if face isn't clearly detected, fail fast.
             objs = DeepFace.represent(
                 img_path=img, 
                 model_name=self.model_name, 
                 detector_backend=self.detector_backend, 
-                enforce_detection=False
+                enforce_detection=True
             )
             
             if not objs or len(objs) == 0:
@@ -106,7 +106,13 @@ class FacialService:
         # Max out near 99.9%
         confidence_percentage = max(0.0, 100.0 * (1.0 - (distance / 2.0)))
 
-        print(f"DEBUG: Face verification completed. Distance: {distance:.4f} | Is Match: {is_match} | Conf: {confidence_percentage:.2f}%")
+        print("\n" + "="*50)
+        print("🔍 FACIAL RECOGNITION DIAGNOSTICS")
+        print(f"📊 Calculated Distance: {distance:.5f}")
+        print(f"🎯 Required Threshold:  < {self.threshold}")
+        print(f"✅ Is Match:            {'YES' if is_match else 'NO'}")
+        print(f"📈 Confidence Score:    {confidence_percentage:.2f}%")
+        print("="*50 + "\n")
 
         return bool(is_match), float(confidence_percentage)
 

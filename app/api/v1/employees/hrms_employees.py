@@ -20,7 +20,12 @@ def get_my_profile(
     db: Session = Depends(get_db)
 ):
     profile = db.query(EmployeeProfile)\
-        .options(joinedload(EmployeeProfile.department), joinedload(EmployeeProfile.skills).joinedload(EmployeeSkill.skill), joinedload(EmployeeProfile.documents))\
+        .options(
+            joinedload(EmployeeProfile.user),
+            joinedload(EmployeeProfile.department), 
+            joinedload(EmployeeProfile.skills).joinedload(EmployeeSkill.skill), 
+            joinedload(EmployeeProfile.documents)
+        )\
         .filter(EmployeeProfile.user_id == current_user.id)\
         .first()
     if not profile:
@@ -179,6 +184,15 @@ def update_profile(
     
     db.commit()
     db.refresh(profile)
+
+    # Reload with user data
+    profile = db.query(EmployeeProfile).options(
+        joinedload(EmployeeProfile.user),
+        joinedload(EmployeeProfile.department),
+        joinedload(EmployeeProfile.skills).joinedload(EmployeeSkill.skill),
+        joinedload(EmployeeProfile.documents)
+    ).filter(EmployeeProfile.id == profile.id).first()
+    
     return profile
 
 @router.put("/{employee_id}", response_model=EmployeeProfileResponse)

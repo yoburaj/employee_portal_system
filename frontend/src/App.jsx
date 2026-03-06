@@ -8,6 +8,10 @@ import { LogOut, LayoutDashboard, Database, Activity, User as UserIcon } from 'l
 
 import LandingPage from './components/common/LandingPage';
 import PublicNavbar from './components/common/PublicNavbar';
+import About from './pages/Company/About';
+import Careers from './pages/Company/Careers';
+import Contact from './pages/Company/Contact';
+import { Terms, Privacy } from './pages/Company/Legal';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -19,13 +23,20 @@ const ProtectedRoute = ({ children }) => {
 const Layout = ({ children }) => {
   const { user } = useAuth();
   const location = useLocation();
-  const publicRoutes = ['/', '/login', '/signup'];
-  const isPublicRoute = publicRoutes.includes(location.pathname);
+
+  // Routes that should NOT show ANY navbar
+  const authRoutes = ['/login', '/signup'];
+
+  // Public routes that SHOULD show the PublicNavbar
+  const navVisiblePublicRoutes = ['/', '/about', '/careers', '/contact', '/terms', '/privacy'];
+
+  const isAuthRoute = authRoutes.includes(location.pathname);
+  const showPublicNavbar = navVisiblePublicRoutes.includes(location.pathname);
 
   return (
     <div className="app-container">
-      {location.pathname === '/' && !user && <PublicNavbar />}
-      {!isPublicRoute && location.pathname !== '/dashboard' && user && user.role !== 'super_admin' && user.role !== 'admin' && <Navbar />}
+      {showPublicNavbar && <PublicNavbar />}
+      {!isAuthRoute && !showPublicNavbar && location.pathname !== '/dashboard' && user && user.role !== 'super_admin' && user.role !== 'admin' && <Navbar />}
       <div className="main-wrapper">
         {children}
       </div>
@@ -99,6 +110,11 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/careers" element={<Careers />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />

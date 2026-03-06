@@ -138,7 +138,7 @@ const Login = () => {
                         </div>
 
                         <div className="auth-form animate-slide-up camera-column">
-                            <WebcamCapture onCapture={handleFaceVerify} />
+                            <WebcamCapture onCapture={handleFaceVerify} loading={loading} />
                             <button
                                 className="btn btn-outline w-full mt-6"
                                 onClick={() => setStep(1)}

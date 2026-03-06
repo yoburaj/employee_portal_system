@@ -2,7 +2,7 @@ import React, { useRef, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import { Camera } from 'lucide-react';
 
-const WebcamCapture = ({ onCapture, isEnrolling = false, autoStop = false }) => {
+const WebcamCapture = ({ onCapture, isEnrolling = false, autoStop = false, loading = false }) => {
     const webcamRef = useRef(null);
     const [isAuto, setIsAuto] = React.useState(false);
     const timerRef = useRef(null);
@@ -14,16 +14,16 @@ const WebcamCapture = ({ onCapture, isEnrolling = false, autoStop = false }) => 
     }, [autoStop, isAuto]);
 
     const capture = useCallback(() => {
-        if (webcamRef.current) {
+        if (webcamRef.current && !loading) {
             const imageSrc = webcamRef.current.getScreenshot();
             if (imageSrc && onCapture) {
                 onCapture(imageSrc);
             }
         }
-    }, [onCapture]);
+    }, [onCapture, loading]);
 
     React.useEffect(() => {
-        if (isAuto) {
+        if (isAuto && !loading) {
             timerRef.current = setInterval(() => {
                 capture();
             }, 150); // Capture every 150ms for a smooth burst
@@ -33,7 +33,7 @@ const WebcamCapture = ({ onCapture, isEnrolling = false, autoStop = false }) => 
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [isAuto, capture]);
+    }, [isAuto, capture, loading]);
 
     const videoConstraints = {
         width: 640,
@@ -100,15 +100,16 @@ const WebcamCapture = ({ onCapture, isEnrolling = false, autoStop = false }) => 
                     <button
                         className={`btn ${isAuto ? 'btn-outline' : 'btn-primary'}`}
                         onClick={() => setIsAuto(!isAuto)}
+                        disabled={loading}
                         style={{ minWidth: '180px', padding: '0.5rem 1rem', fontSize: '0.8125rem', borderColor: isAuto ? 'var(--danger-color)' : '' }}
                     >
                         <Camera size={16} />
                         {isAuto ? 'Stop Auto Capture' : 'Start Auto Capture'}
                     </button>
                 ) : (
-                    <button className="btn btn-primary" onClick={capture} style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem' }}>
+                    <button className="btn btn-primary" onClick={capture} disabled={loading} style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem' }}>
                         <Camera size={16} />
-                        Verify Identity
+                        {loading ? 'Verifying...' : 'Verify Identity'}
                     </button>
                 )}
             </div>

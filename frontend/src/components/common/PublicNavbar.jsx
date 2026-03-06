@@ -9,11 +9,6 @@ const PublicNavbar = () => {
 
   const isActive = (path) => location.pathname === path;
 
-  const hideNavbarPaths = ['/login', '/signup'];
-  if (hideNavbarPaths.includes(location.pathname)) {
-    return null;
-  }
-
   return (
     <nav className="public-nav">
       <div className="container nav-content">
@@ -21,7 +16,7 @@ const PublicNavbar = () => {
           <div className="logo-icon-container">
             <Database size={18} color="white" strokeWidth={2.5} />
           </div>
-          <span className="logo-text">VisionHR</span>
+          <span className="logo-text">Fusion Staffing</span>
         </div>
 
         <div className="nav-links desktop-only">

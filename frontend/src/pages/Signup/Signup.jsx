@@ -113,26 +113,26 @@ const Signup = () => {
                         <div className="form-grid-signup">
                             <div className="input-group-signup">
                                 <label>First Name</label>
-                                <input type="text" required value={formData.first_name} onChange={e => setFormData({ ...formData, first_name: e.target.value })} placeholder="John" />
+                                <input type="text" required value={formData.first_name} onChange={e => setFormData({ ...formData, first_name: e.target.value })} placeholder="First Name" />
                             </div>
                             <div className="input-group-signup">
                                 <label>Last Name</label>
-                                <input type="text" required value={formData.last_name} onChange={e => setFormData({ ...formData, last_name: e.target.value })} placeholder="Doe" />
+                                <input type="text" required value={formData.last_name} onChange={e => setFormData({ ...formData, last_name: e.target.value })} placeholder="Last Name" />
                             </div>
                         </div>
                         <div className="form-grid-signup">
                             <div className="input-group-signup">
                                 <label>Username</label>
-                                <input type="text" required value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} placeholder="johndoe" />
+                                <input type="text" required value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} placeholder="Username" />
                             </div>
                             <div className="input-group-signup">
                                 <label>Password</label>
-                                <input type="password" required value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} placeholder="••••••••" />
+                                <input type="password" required value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} placeholder="Password" />
                             </div>
                         </div>
                         <div className="input-group-signup">
                             <label>Email Address</label>
-                            <input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="john@company.com" />
+                            <input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="Email Address" />
                         </div>
                         <div className="form-grid-signup">
                             <div className="input-group-signup">
@@ -175,6 +175,7 @@ const Signup = () => {
                             onCapture={handleFaceCapture}
                             isEnrolling={true}
                             autoStop={capturedCount >= 50}
+                            loading={loading}
                         />
 
                         <div className="button-group mt-6">

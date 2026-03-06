@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   Database,
@@ -151,7 +151,7 @@ const LandingPage = () => {
               <div className="logo-icon">
                 <Database size={24} color="white" />
               </div>
-              <span className="logo-text">VisionHR</span>
+              <span className="logo-text">Fusion Staffing</span>
             </div>
             <p className="brand-description">
               Empowering the modern workforce with intelligent HR solutions designed for global scale and local impact.
@@ -164,48 +164,20 @@ const LandingPage = () => {
           </div>
 
           <div className="footer-links">
-            <h4>PRODUCT</h4>
-            <a href="#">Features</a>
-            <a href="#">Pricing</a>
-            <a href="#">Security</a>
-            <a href="#">Integrations</a>
-          </div>
-
-          <div className="footer-links">
             <h4>COMPANY</h4>
-            <a href="#">About</a>
-            <a href="#">Careers</a>
-            <a href="#">Contact</a>
-            <a href="#">Press</a>
-          </div>
-
-          <div className="footer-links">
-            <h4>RESOURCES</h4>
-            <a href="#">Blog</a>
-            <a href="#">Documentation</a>
-            <a href="#">Help Center</a>
-            <a href="#">Community</a>
-          </div>
-
-          <div className="footer-subscribe">
-            <h4>STAY UPDATED</h4>
-            <p>Get the latest updates in your inbox.</p>
-            <div className="subscribe-form">
-              <div className="input-with-icon">
-                <Mail size={18} className="input-icon" />
-                <input type="email" placeholder="Email address" />
-              </div>
-              <button className="btn btn-primary w-full">Subscribe</button>
-            </div>
+            <Link to="/about">About</Link>
+            <Link to="/careers">Careers</Link>
+            <Link to="/contact">Contact</Link>
+            <Link to="/press">Press</Link>
           </div>
         </div>
 
         <div className="container footer-bottom">
-          <p>© 2024 VisionHR Inc. All rights reserved. Built with precision.</p>
+          <p>© {new Date().getFullYear()} VisionHR Inc. All rights reserved. Built with precision.</p>
           <div className="bottom-links">
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
-            <a href="#">Cookie Settings</a>
+            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/terms">Terms of Service</Link>
+            <Link to="/cookies">Cookie Settings</Link>
           </div>
         </div>
       </footer>
@@ -538,9 +510,9 @@ const LandingPage = () => {
 
                 .footer-grid {
                     display: grid;
-                    grid-template-columns: 2fr repeat(3, 1fr) 1.5fr;
-                    gap: 4rem;
-                    margin-bottom: 6rem;
+                    grid-template-columns: 2fr 1fr;
+                    gap: 8rem;
+                    margin-bottom: 4rem;
                 }
 
                 .footer-brand-section .logo-text {
@@ -685,11 +657,9 @@ const LandingPage = () => {
 
                 @media (max-width: 1024px) {
                     .footer-grid {
-                        grid-template-columns: 1fr 1fr;
+                        grid-template-columns: 1fr;
                         gap: 3rem;
                     }
-                    .footer-brand-section { grid-column: span 2; }
-                    .footer-subscribe { grid-column: span 2; }
                 }
 
                 @media (max-width: 968px) {
