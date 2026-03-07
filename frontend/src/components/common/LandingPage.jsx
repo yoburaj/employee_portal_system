@@ -81,9 +81,9 @@ const LandingPage = () => {
               <img src="https://ui-avatars.com/api/?name=John+Doe&background=random" alt="User" />
               <img src="https://ui-avatars.com/api/?name=Jane+Smith&background=random" alt="User" />
               <img src="https://ui-avatars.com/api/?name=Bob+Wilson&background=random" alt="User" />
-              <div className="avatar-more">+2k</div>
+              <div className="avatar-more">+{stats.total_employees >= 1000 ? (stats.total_employees / 1000).toFixed(1).replace('.0', '') + 'k' : stats.total_employees}</div>
             </div>
-            <span>Trusted by 2,000+ HR professionals</span>
+            <span>Trusted by {stats.total_employees.toLocaleString()}+ HR professionals</span>
           </div>
         </div>
 
@@ -168,7 +168,6 @@ const LandingPage = () => {
             <Link to="/about">About</Link>
             <Link to="/careers">Careers</Link>
             <Link to="/contact">Contact</Link>
-            <Link to="/press">Press</Link>
           </div>
         </div>
 
@@ -504,15 +503,15 @@ const LandingPage = () => {
                 /* Footer */
                 .landing-footer {
                     background: white;
-                    padding-top: 8rem;
+                    padding-top: 4rem;
                     border-top: 1px solid var(--border-color);
                 }
 
                 .footer-grid {
                     display: grid;
                     grid-template-columns: 2fr 1fr;
-                    gap: 8rem;
-                    margin-bottom: 4rem;
+                    gap: 4rem;
+                    margin-bottom: 2rem;
                 }
 
                 .footer-brand-section .logo-text {
@@ -540,7 +539,7 @@ const LandingPage = () => {
                     color: var(--text-muted);
                     font-size: 0.95rem;
                     line-height: 1.6;
-                    margin: 1.5rem 0 2rem;
+                    margin: 1rem 0 1.5rem;
                     max-width: 280px;
                 }
 
@@ -560,7 +559,7 @@ const LandingPage = () => {
                     font-size: 0.75rem;
                     font-weight: 700;
                     letter-spacing: 0.1em;
-                    margin-bottom: 2rem;
+                    margin-bottom: 1.25rem;
                     color: var(--text-main);
                 }
 
@@ -621,7 +620,7 @@ const LandingPage = () => {
                 }
 
                 .footer-bottom {
-                    padding: 2.5rem 1.5rem;
+                    padding: 1.5rem;
                     border-top: 1px solid var(--border-color);
                     display: flex;
                     justify-content: space-between;

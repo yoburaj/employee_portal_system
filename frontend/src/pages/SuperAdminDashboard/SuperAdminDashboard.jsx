@@ -223,7 +223,6 @@ const SuperAdminDashboard = () => {
                     <NavItem icon={<Users size={20} />} label="Employees" active={activeTab === 'employees'} onClick={() => setActiveTab('employees')} />
                     <NavItem icon={<Building2 size={20} />} label="Departments" active={activeTab === 'departments'} onClick={() => setActiveTab('departments')} />
                     <NavItem icon={<Calendar size={20} />} label="Time & Attendance" active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} />
-                    <NavItem icon={<Settings size={20} />} label="System Configuration" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
                 </nav>
 
                 <div className="vision-user-profile">
@@ -479,66 +478,7 @@ const SuperAdminDashboard = () => {
                     </div>
                 )}
 
-                {activeTab === 'settings' && (
-                    <div className="settings-container animate-fade-in">
-                        <div className="settings-grid">
-                            <div className="settings-section">
-                                <div className="settings-group">
-                                    <h4><Shield size={16} /> Security Architecture <div className="header-line"></div></h4>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <label>Biometric Enforcement</label>
-                                            <span>Mandate facial recognition for all high-clearance areas</span>
-                                        </div>
-                                        <div className="toggle-switch active"><div className="toggle-knob"></div></div>
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <label>Multi-Factor Authentication</label>
-                                            <span>Require secondary verification for remote system access</span>
-                                        </div>
-                                        <div className="toggle-switch active"><div className="toggle-knob"></div></div>
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <label>Session Expiration</label>
-                                            <span>Idle timeout duration for administrative sessions</span>
-                                        </div>
-                                        <select className="settings-input" style={{ width: '120px' }}>
-                                            <option>15 Minutes</option>
-                                            <option>30 Minutes</option>
-                                            <option>1 Hour</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div className="settings-section">
-                                <div className="settings-group">
-                                    <h4><Building2 size={16} /> Enterprise Branding <div className="header-line"></div></h4>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <label>Portal Primary Color</label>
-                                            <span>Global accent color for UI elements</span>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <div style={{ width: '24px', height: '24px', borderRadius: '4px', background: '#2563eb', border: '2px solid white', outline: '1px solid #ddd' }}></div>
-                                            <div style={{ width: '24px', height: '24px', borderRadius: '4px', background: '#7c3aed' }}></div>
-                                            <div style={{ width: '24px', height: '24px', borderRadius: '4px', background: '#059669' }}></div>
-                                        </div>
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <label>Organization Alias</label>
-                                            <span>Display name across system headers</span>
-                                        </div>
-                                        <input type="text" className="settings-input" defaultValue="VisionHR Global Corp" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </main>
 
             {/* Modals - Same logic as before but with updated structure */}

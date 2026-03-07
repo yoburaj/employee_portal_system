@@ -675,12 +675,6 @@ const EmployeeDashboard = () => {
                         </div>
                     </div>
                     <div className="header-actions">
-                        <div className="search-minimal">
-                            <Rocket size={16} className="text-muted" />
-                            <input type="text" placeholder="Global search..." />
-                        </div>
-                        <button className="icon-btn"><Bell size={20} /></button>
-                        <button className="icon-btn" onClick={() => setActiveTab('settings')}><Settings size={20} /></button>
                         <div className="divider-v"></div>
                         <div className="user-nav-pill" onClick={() => setActiveTab('profile')}>
                             <div className="user-avatar-sm">
