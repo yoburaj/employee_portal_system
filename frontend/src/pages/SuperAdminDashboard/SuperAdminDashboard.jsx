@@ -39,6 +39,11 @@ const SuperAdminDashboard = () => {
     const [capturedCount, setCapturedCount] = useState(0);
     const [capturedImages, setCapturedImages] = useState([]);
 
+    // Department edit / delete state
+    const [selectedDept, setSelectedDept] = useState(null);
+    const [deptActionType, setDeptActionType] = useState(null); // 'edit' | 'delete'
+    const [editDeptData, setEditDeptData] = useState({ name: '', description: '' });
+
     useEffect(() => {
         fetchData();
     }, []);
@@ -174,6 +179,41 @@ const SuperAdminDashboard = () => {
         setNewEmployee({ username: '', email: '', first_name: '', last_name: '', department_id: '', role: 'employee', enableFacial: true });
     };
 
+    const handleUpdateDept = async (e) => {
+        e.preventDefault();
+        setIsProcessing(true);
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await axios.put(`${API_BASE}/admin/departments/${selectedDept.id}`, editDeptData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setDepartments(prev => prev.map(d => d.id === resp.data.id ? resp.data : d));
+            setDeptActionType(null);
+            setSelectedDept(null);
+        } catch (err) {
+            alert(err.response?.data?.detail || 'Failed to update department');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleDeleteDept = async () => {
+        setIsProcessing(true);
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`${API_BASE}/admin/departments/${selectedDept.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setDepartments(prev => prev.filter(d => d.id !== selectedDept.id));
+            setDeptActionType(null);
+            setSelectedDept(null);
+        } catch (err) {
+            alert(err.response?.data?.detail || 'Failed to delete department');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     const filteredEmployees = employees.filter(emp =>
         `${emp.first_name} ${emp.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
         emp.employee_id.toLowerCase().includes(searchTerm.toLowerCase())
@@ -216,7 +256,7 @@ const SuperAdminDashboard = () => {
             <aside className="vision-sidebar">
                 <div className="vision-logo">
                     <div className="logo-icon"><Users color="white" size={20} /></div>
-                    <span>VisionHR Intelligence</span>
+                    <span>Fusion Staffing</span>
                 </div>
                 <nav>
                     <NavItem icon={<LayoutDashboard size={20} />} label="Overview" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
@@ -411,6 +451,26 @@ const SuperAdminDashboard = () => {
                                 <div className="dept-header">
                                     <div className="dept-icon"><Building2 size={24} /></div>
                                     <h3>{dept.name}</h3>
+                                    <div className="dept-actions">
+                                        <button
+                                            className="dept-action-btn edit"
+                                            title="Edit Department"
+                                            onClick={() => {
+                                                setSelectedDept(dept);
+                                                setEditDeptData({ name: dept.name, description: dept.description || '' });
+                                                setDeptActionType('edit');
+                                            }}
+                                        >
+                                            <Edit2 size={14} />
+                                        </button>
+                                        <button
+                                            className="dept-action-btn delete"
+                                            title="Delete Department"
+                                            onClick={() => { setSelectedDept(dept); setDeptActionType('delete'); }}
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
                                 </div>
                                 <p className="dept-desc">{dept.description || 'No specialized description provided for this operational unit.'}</p>
                                 <div className="dept-stats">
@@ -712,6 +772,69 @@ const SuperAdminDashboard = () => {
                                 <div className="modal-footer" style={{ justifyContent: 'center' }}>
                                     <button onClick={() => setActionType(null)} className="btn btn-outline" style={{ border: 'none' }}>Keep Record</button>
                                     <button onClick={handleDeleteEmployee} className="btn btn-danger" disabled={isProcessing} style={{ padding: '0.75rem 2rem' }}>
+                                        {isProcessing ? 'Deleting...' : 'Yes, Delete'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Department Edit / Delete Modals */}
+            {deptActionType && selectedDept && (
+                <div className="vision-modal-overlay">
+                    <div className="vision-modal glass animate-fade-in">
+                        <div className="modal-header">
+                            <div>
+                                <h3>{deptActionType === 'edit' ? 'Edit Department' : 'Delete Department'}</h3>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                    {deptActionType === 'edit' ? 'Update department details' : 'This action cannot be undone'}
+                                </p>
+                            </div>
+                            <button onClick={() => { setDeptActionType(null); setSelectedDept(null); }} className="btn-close"><X size={20} /></button>
+                        </div>
+
+                        {deptActionType === 'edit' ? (
+                            <form onSubmit={handleUpdateDept} className="vision-form">
+                                <div className="form-group">
+                                    <label>Department Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editDeptData.name}
+                                        onChange={e => setEditDeptData({ ...editDeptData, name: e.target.value })}
+                                        placeholder="e.g. Engineering"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Description</label>
+                                    <textarea
+                                        rows={3}
+                                        value={editDeptData.description}
+                                        onChange={e => setEditDeptData({ ...editDeptData, description: e.target.value })}
+                                        placeholder="Briefly describe this department's function..."
+                                    />
+                                </div>
+                                <div className="modal-footer">
+                                    <button type="button" onClick={() => { setDeptActionType(null); setSelectedDept(null); }} className="btn btn-outline" style={{ border: 'none' }}>Cancel</button>
+                                    <button type="submit" className="btn btn-primary" disabled={isProcessing}>
+                                        {isProcessing ? 'Saving...' : 'Save Changes'}
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                                <div style={{ color: 'var(--danger-color)', marginBottom: '1.5rem' }}>
+                                    <Trash2 size={48} style={{ margin: '0 auto' }} />
+                                </div>
+                                <p style={{ color: 'white', fontSize: '1.1rem', marginBottom: '0.5rem' }}>Delete this department?</p>
+                                <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+                                    This will permanently remove <strong>{selectedDept.name}</strong> from the system. This action cannot be undone.
+                                </p>
+                                <div className="modal-footer" style={{ justifyContent: 'center' }}>
+                                    <button onClick={() => { setDeptActionType(null); setSelectedDept(null); }} className="btn btn-outline" style={{ border: 'none' }}>Cancel</button>
+                                    <button onClick={handleDeleteDept} className="btn btn-danger" disabled={isProcessing} style={{ padding: '0.75rem 2rem' }}>
                                         {isProcessing ? 'Deleting...' : 'Yes, Delete'}
                                     </button>
                                 </div>

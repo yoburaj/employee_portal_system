@@ -191,6 +191,30 @@ const EmployeeDashboard = () => {
         }
     };
 
+    const handleDocumentUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await axios.post(`${API_BASE}/employees/upload-document?document_type=General`, formData, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            setProfile(prev => ({
+                ...prev,
+                documents: [...(prev.documents || []), resp.data]
+            }));
+        } catch (err) {
+            const detail = err.response?.data?.detail || err.message || 'Unknown error';
+            console.error("Failed to upload document", err.response?.data || err);
+            alert("Failed to upload document: " + detail);
+        }
+    };
+
     if (loading) {
         return (
             <div className="loading-container">
@@ -579,16 +603,24 @@ const EmployeeDashboard = () => {
 
     const renderDocuments = () => (
         <div className="employee-documents-view animate-fade-in animate-slide-up">
-            <div className="card-header-with-icon" style={{ marginBottom: '1.5rem' }}>
-                <div className="header-icon-box"><FileText size={20} /></div>
-                <h3>MY DOCUMENTS</h3>
+            <div className="card-header-with-icon" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div className="header-icon-box"><FileText size={20} /></div>
+                    <h3>MY DOCUMENTS</h3>
+                </div>
+                <div>
+                    <input type="file" id="document-upload" style={{ display: 'none' }} onChange={handleDocumentUpload} />
+                    <label htmlFor="document-upload" className="btn btn-primary" style={{ cursor: 'pointer', padding: '0.5rem 1rem', fontSize: '0.875rem', margin: 0 }}>
+                        + Upload Document
+                    </label>
+                </div>
             </div>
             {profile?.documents?.length > 0 ? (
                 <div className="documents-grid">
                     {profile.documents.map((doc, i) => (
                         <div key={doc.id || i} className="card glass document-card">
                             <div className="doc-icon">
-                                {doc.document_name.endsWith('.pdf') ? <FileText size={24} /> : <Camera size={24} />}
+                                {doc.document_name?.endsWith('.pdf') ? <FileText size={24} /> : <Camera size={24} />}
                             </div>
                             <div className="doc-info">
                                 <p className="doc-name">{doc.document_name}</p>
@@ -604,7 +636,7 @@ const EmployeeDashboard = () => {
                 <div className="empty-skills" style={{ marginTop: '2rem' }}>
                     <div className="empty-icon-circle"><FileText size={32} /></div>
                     <p className="empty-title">No documents available</p>
-                    <p className="empty-desc">Your official HR documents will appear here once uploaded by Admin.</p>
+                    <p className="empty-desc">Upload your official HR documents or wait for Admin to provide them.</p>
                 </div>
             )}
         </div>
@@ -651,10 +683,10 @@ const EmployeeDashboard = () => {
                 </nav>
 
                 <div className="sidebar-footer">
-                    <div className="help-center">
+                    {/* <div className="help-center">
                         <HelpCircle size={18} />
-                        <span>Help Center</span>
-                    </div>
+                      
+                    </div> */}
                     <div className="logout-btn" onClick={handleLogout} style={{ cursor: 'pointer', marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#94a3b8', fontSize: '0.875rem' }}>
                         <LogOut size={18} color="#ef4444" />
                         <span style={{ color: '#ef4444' }}>Logout</span>

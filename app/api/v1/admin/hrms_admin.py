@@ -39,6 +39,39 @@ def list_departments(
 ):
     return db.query(Department).all()
 
+@router.put("/departments/{department_id}", response_model=DepartmentResponse)
+def update_department(
+    department_id: int,
+    dept_in: DepartmentCreate,
+    current_user: User = Depends(check_role([UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    dept = db.query(Department).filter(Department.id == department_id).first()
+    if not dept:
+        raise HTTPException(status_code=404, detail="Department not found")
+    # Check name uniqueness (allow same name for same dept)
+    existing = db.query(Department).filter(Department.name == dept_in.name, Department.id != department_id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Department name already exists")
+    dept.name = dept_in.name
+    dept.description = dept_in.description
+    db.commit()
+    db.refresh(dept)
+    return dept
+
+@router.delete("/departments/{department_id}")
+def delete_department(
+    department_id: int,
+    current_user: User = Depends(check_role([UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    dept = db.query(Department).filter(Department.id == department_id).first()
+    if not dept:
+        raise HTTPException(status_code=404, detail="Department not found")
+    db.delete(dept)
+    db.commit()
+    return {"status": "success", "message": f"Department {department_id} deleted"}
+
 @router.post("/departments/{department_id}/assign-admin")
 def assign_admin_to_dept(
     department_id: int,

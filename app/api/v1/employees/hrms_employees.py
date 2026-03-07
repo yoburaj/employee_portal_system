@@ -307,26 +307,35 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    profile = current_user.employee_profile
+    # Explicitly query profile to avoid lazy-load issues
+    profile = db.query(EmployeeProfile).filter(EmployeeProfile.user_id == current_user.id).first()
     if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise HTTPException(status_code=404, detail="Profile not found. Ensure employee record exists.")
 
-    os.makedirs("uploads/documents", exist_ok=True)
+    # Ensure the upload directory exists
+    upload_dir = os.path.join("uploads", "documents")
+    os.makedirs(upload_dir, exist_ok=True)
     
-    ext = os.path.splitext(file.filename)[1]
+    # Sanitize filename and generate unique name
+    original_filename = file.filename or "document"
+    ext = os.path.splitext(original_filename)[1]
     filename = f"{uuid.uuid4()}{ext}"
-    file_path = f"uploads/documents/{filename}"
+    file_path = os.path.join(upload_dir, filename)
+    url_path = f"/uploads/documents/{filename}"
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
     file_size = os.path.getsize(file_path)
 
     new_doc = EmployeeDocument(
         employee_id=profile.id,
-        document_name=file.filename,
+        document_name=original_filename,
         document_type=document_type,
-        file_path=f"/{file_path}",
+        file_path=url_path,
         file_size_bytes=file_size
     )
     db.add(new_doc)
@@ -334,4 +343,6 @@ async def upload_document(
     db.refresh(new_doc)
 
     from app.schema.user import EmployeeDocumentResponse
+    if hasattr(EmployeeDocumentResponse, 'model_validate'):
+        return EmployeeDocumentResponse.model_validate(new_doc)
     return EmployeeDocumentResponse.from_orm(new_doc)

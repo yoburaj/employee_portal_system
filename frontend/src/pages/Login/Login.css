@@ -137,6 +137,37 @@
     box-shadow: 0 0 0 4px var(--primary-glow);
 }
 
+/* Password show/hide wrapper */
+.login-page .password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.login-page .password-input-wrapper input {
+    width: 100%;
+    padding-right: 3rem;
+}
+
+.login-page .password-toggle-btn {
+    position: absolute;
+    right: 1rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.15s ease;
+}
+
+.login-page .password-toggle-btn:hover {
+    color: var(--primary-color);
+}
+
 .login-page .w-full {
     width: 100%;
 }

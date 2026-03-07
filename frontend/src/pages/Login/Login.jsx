@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import WebcamCapture from '../../components/common/WebcamCapture';
 import axios from 'axios';
-import { LogIn, User, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { LogIn, User, Lock, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import './Login.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
@@ -14,6 +14,7 @@ const Login = () => {
     const [error, setError] = useState('');
     const [formData, setFormData] = useState({ username: '', password: '' });
     const [sessionToken, setSessionToken] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
@@ -93,14 +94,25 @@ const Login = () => {
                             </div>
                             <div className="input-group-auth">
                                 <label><Lock size={14} /> Password</label>
-                                <input
-                                    type="password"
-                                    required
-                                    value={formData.password}
-                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    placeholder="••••••••"
-                                    autoComplete="current-password"
-                                />
+                                <div className="password-input-wrapper">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        required
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                        placeholder="••••••••"
+                                        autoComplete="current-password"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="password-toggle-btn"
+                                        onClick={() => setShowPassword(prev => !prev)}
+                                        tabIndex={-1}
+                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                                    </button>
+                                </div>
                             </div>
                             <button className="btn btn-primary w-full" disabled={loading}>
                                 {loading ? 'Verifying...' : 'Next Step'} <ArrowRight size={18} />

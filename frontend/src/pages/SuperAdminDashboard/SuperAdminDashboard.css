@@ -759,6 +759,44 @@
     margin-bottom: 1rem;
 }
 
+.dept-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-left: auto;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.dept-card:hover .dept-actions {
+    opacity: 1;
+}
+
+.dept-action-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.15s ease;
+}
+
+.dept-action-btn.edit:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: var(--primary-color);
+}
+
+.dept-action-btn.delete:hover {
+    background: #fff1f2;
+    border-color: #fecaca;
+    color: #ef4444;
+}
+
 .dept-icon {
     width: 40px;
     height: 40px;
